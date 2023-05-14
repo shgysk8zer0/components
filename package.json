@@ -1,0 +1,70 @@
+{
+  "name": "@shgysk8zer0/components",
+  "version": "0.0.1",
+  "description": "A collection of custom elements / web components",
+  "main": "index.js",
+  "private": false,
+  "type": "module",
+  "config": {
+    "serve": {
+      "domain": "localhost",
+      "path": "test/",
+      "port": 8080
+    },
+    "dir": {
+      "css": "./",
+      "js": "./",
+      "img": "img/",
+      "html": "./"
+    }
+  },
+  "scripts": {
+    "test": "npm run lint:js && npm run lint:css && npm run lint:html",
+    "preversion": "npm test",
+    "prepare": "npm run build:js",
+    "start": "http-server ${npm_package_config_serve_path} -c-1 --port ${npm_package_config_serve_port} --gzip true --brotli true -a ${npm_package_config_serve_domain} -o ${npm_package_config_serve_path}",
+    "create:lock": "npm i --package-lock-only --ignore-scripts",
+    "build": "npm run build:js:ads && npm run build:js:events && npm run build:js:maps && npm run build:js:share && npm run build:js:wfd",
+    "build:js": "rollup -c",
+    "build:js:ads": "if [ -f 'rollup.krv-ad.config.js' ]; then rollup -c rollup.krv-ad.config.js; fi",
+    "build:js:events": "if [ -f 'rollup.events.config.js' ]; then rollup -c rollup.events.config.js; fi",
+    "build:js:maps": "if [ -f 'rollup.map.config.js' ]; then rollup -c rollup.map.config.js; fi",
+    "build:js:share": "if [ -f 'rollup.share.config.js' ]; then rollup -c rollup.share.config.js; fi",
+    "build:js:weather": "if [ -f 'rollup.weather.config.js' ]; then rollup -c rollup.weather.config.js; fi",
+    "build:js:wfd": "if [ -f 'rollup.wfd.config.js' ]; then rollup -c rollup.wfd.config.js; fi",
+    "fix": "npm run fix:js && npm run fix:css",
+    "fix:js": "eslint . --fix",
+    "fix:css": "if [ -f './stylelintrc.json' ]; then stylelint ${npm_package_config_dir_css} --fix; fi",
+    "lint:js": "eslint .",
+    "lint:css": "if [ -f '.stylelintrc.json' ]; then stylelint ${npm_package_config_dir_css}; fi",
+    "lint:html": "htmlhint \"**/*.html\"",
+    "create:lock": "npm i --package-lock-only --ignore-scripts",
+    "version:bump": "npm run version:bump:patch",
+    "version:bump:patch": "npm version --no-git-tag-version patch",
+    "version:bump:minor": "npm version --no-git-tag-version minor",
+    "version:bump:major": "npm version --no-git-tag-version major"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shgysk8zer0/components.git"
+  },
+  "keywords": [
+    "custom-elements",
+    "web-components"
+  ],
+  "author": "Chris Zuber <admin@kernvalley.us>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/shgysk8zer0/components/issues"
+  },
+  "homepage": "https://github.com/shgysk8zer0/components#readme",
+  "devDependencies": {
+    "@rollup/plugin-terser": "^0.4.1",
+    "@shgysk8zer0/rollup-import": "^1.0.0",
+    "eslint": "^8.40.0",
+    "htmlhint": "^1.1.4",
+    "http-server": "^14.1.1",
+    "rollup": "^3.21.7",
+    "stylelint": "^15.6.1"
+  }
+}

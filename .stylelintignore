@@ -1,0 +1,15 @@
+/img/
+/js/
+/fonts/
+/node_modules/
+/_site/
+/css/core-css/
+/css/normalize/
+/css/animate.css/
+*.html
+*.js
+*.min*
+*.map
+*.json
+*.md
+LICENSE
