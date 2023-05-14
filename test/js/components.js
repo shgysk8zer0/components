@@ -4,6 +4,7 @@ import '../../leaflet/marker.js';
 import '../../github/user.js';
 import '../../github/repo.js';
 import '../../button/share.js';
+// import '../../share-button.js';
 import '../../bacon-ipsum.js';
 import '../../app/list-button.js';
 import '../../loading-spinner.js';

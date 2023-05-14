@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.0.3] - 2023-05-14
+
+### Added
+- `<button is="share-button">`
+- `<toast-message>`
+
+### Changed
+- Update `importmap.json`
+
 ### [v0.0.2] - 2023-05-14
 
 ### Added
