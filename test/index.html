@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="color-scheme" content="light dark" />
+		<meta http-equiv="Content-Security-Policy" content="
+			default-src 'self';
+			script-src 'self' https://unpkg.com/ https://cdn.kernvalley.us/js/ 'nonce-2922730b-7e42-4420-b730-1c98df161582';
+			style-src 'self' https://cdn.kernvalley.us/css/ https://unpkg.com;
+			font-src 'self' https://cdn.kernvalley.us/fonts/;
+			connect-src 'self' *.kernvalley.us https://baconipsum.com/api/ https://api.github.com/ https://api.openweathermap.org/data/2.5/;
+			child-src  https://www.youtube-nocookie.com/embed/;
+			img-src * data: blob;
+			trusted-types default empty#html empty#script sanitizer-raw#html purify-raw#html purify#html github#gist dompurify share-to-buttons#html weather-current#html weather-forecast#html krv-events#html codepen#script-url module#script-url purify-raw#html purify#html pwa-install html-notification#script spotify-player#html spotify#script-url krv-contact#html github-user#html github-repo#html youtube#embed;
+			require-trusted-types-for 'self';
+		" />
+		<base href="/test/" />
+		<title>@shgysk8zer0/components</title>
+		<script type="importmap" nonce="2922730b-7e42-4420-b730-1c98df161582">
+			{
+				"imports": {
+					"std-js/": "https://cdn.kernvalley.us/js/std-js/",
+					"@shgysk8zer0/kazoo/": "https://unpkg.com/@shgysk8zer0/kazoo@0.0.9/",
+					"@shgysk8zer0/polyfills": "https://unpkg.com/@shgysk8zer0/polyfills@0.0.5/all.min.js",
+					"@shgysk8zer0/polyfills/": "https://unpkg.com/@shgysk8zer0/polyfills@0.0.5/",
+					"@shgysk8zer0/konami": "https://unpkg.com/@shgysk8zer0/konami@1.0.9/konami.js",
+					"@shgysk8zer0/components/": "../",
+					"@kernvalley/components/": "../krv/",
+					"leaflet": "https://unpkg.com/leaflet@1.9.3/dist/leaflet-src.esm.js"
+				}
+			}
+		</script>
+		<script type="module" src="./js/index.js" referrerpolicy="no-referrer"></script>
+		<script type="module" src="./js/components.js" referrerpolicy="no-referrer"></script>
+		<link rel="stylesheet" href="./css/index.css" referrerpolicy="no-referrer" />
+	</head>
+	<body>
+		<header id="header">
+			<github-user user="shgysk8zer0"></github-user>
+			<github-repo user="shgysk8zer0" repo="components"></github-repo>
+		</header>
+		<nav id="nav">
+			<button is="app-list">Apps</button>
+			<share-to-button target="twitter"></share-to-button>
+			<share-to-button target="linkedin"></share-to-button>
+		</nav>
+		<main id="main">
+			<loading-spinner></loading-spinner>
+			<weather-forecast appid="41ff0542577756523c5fcfaaeabe89d7" postalcode="93238"></weather-forecast>
+			<bacon-ipsum></bacon-ipsum>
+			<leaflet-map zoomcontrol="" allowfullscreen="" allowlocate=""></leaflet-map>
+		</main>
+		<aside id="sidebar">
+			<weather-current appid="41ff0542577756523c5fcfaaeabe89d7" postalcode="93238"></weather-current>
+			<krv-ad>
+				<img slot="image" src="https://cdn.kernvalley.us/img/branding/events.kernvalley.us.svg" loading="lazy" decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" alt="KRV Events Logo" itemprop="image" role="img" width="92" height="92" />
+				<b slot="label" itemprop="name">Kern Valley Events</b>
+				<p slot="description" itemprop="description">The best things going on in the Valley. None of the clutter. </p>
+				<span slot="calltoaction">See what's going on today.</span>
+			</krv-ad>
+		</aside>
+		<footer id="footer"></footer>
+		<share-button class="fixed bottom right btn btn-primary" url="https://npmjs.org/package/@shgysk8zer0/components" sharetitle="@shgysk8zer0/components" text="A collection of custom elements / web components">Share</share-button>
+	</body>
+</html>
