@@ -38,7 +38,6 @@
     "lint:js": "eslint .",
     "lint:css": "if [ -f '.stylelintrc.json' ]; then stylelint ${npm_package_config_dir_css}; fi",
     "lint:html": "htmlhint \"**/*.html\"",
-    "create:lock": "npm i --package-lock-only --ignore-scripts",
     "version:bump": "npm run version:bump:patch",
     "version:bump:patch": "npm version --no-git-tag-version patch",
     "version:bump:minor": "npm version --no-git-tag-version minor",

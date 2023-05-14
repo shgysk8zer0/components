@@ -11,7 +11,6 @@ A collection of custom elements / web components
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/shgysk8zer0?logo=github)](https://github.com/sponsors/shgysk8zer0)
 
 [![npm](https://img.shields.io/npm/v/@shgysk8zer0/components)](https://www.npmjs.com/package/@shgysk8zer0/components)
-![node-current](https://img.shields.io/node/v/@shgysk8zer0/components)
 ![npm bundle size gzipped](https://img.shields.io/bundlephobia/minzip/@shgysk8zer0/components)
 [![npm](https://img.shields.io/npm/dw/@shgysk8zer0/components?logo=npm)](https://www.npmjs.com/package/@shgysk8zer0/components)
 
