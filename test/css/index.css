@@ -1,0 +1,65 @@
+@import url("./vars.css");
+
+:root {
+	box-sizing: border-box;
+}
+
+* {
+	box-sizing: inherit;
+}
+
+body {
+	display: grid;
+	margin: 0;
+	grid-template-areas: "header header header" "nav nav nav" "main . sidebar" "footer footer footer";
+	grid-template-rows: calc(100dvh - var(--nav-height)) var(--nav-height) auto 60vh;
+	grid-template-columns: 1fr 1.2em 400px;
+}
+
+#header {
+	grid-area: header;
+}
+
+#nav {
+	grid-area: nav;
+	position: sticky;
+	padding: 4px;
+	top: 0;
+	height: var(--nav-height);
+	display: flex;
+	flex-direction: row;
+	gap: 0.8em;
+	background-image: linear-gradient(var(--accent-color), #1515ce);
+	z-index: 10;
+}
+
+#main {
+	grid-area: main;
+}
+
+#sidebar {
+	grid-area: sidebar;
+}
+
+#footer {
+	grid-area: footer;
+	background-color: #242424;
+	color: #fafafa;
+}
+
+dialog::backdrop {
+	background-color: rgba(0, 0, 0, 0.7);
+	backdrop-filter: blur(3px);
+}
+
+.fixed {
+	position: fixed;
+}
+
+.bottom {
+	bottom: 0;
+}
+
+.right {
+	right: 0;
+}

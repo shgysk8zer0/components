@@ -22,7 +22,7 @@
     "test": "npm run lint:js && npm run lint:css && npm run lint:html",
     "preversion": "npm test",
     "prepare": "npm run build:js",
-    "start": "http-server ${npm_package_config_serve_path} -c-1 --port ${npm_package_config_serve_port} --gzip true --brotli true -a ${npm_package_config_serve_domain} -o ${npm_package_config_serve_path}",
+    "start": "http-server ./ -c-1 --port ${npm_package_config_serve_port} --gzip true --brotli true -a ${npm_package_config_serve_domain} -o ${npm_package_config_serve_path}",
     "create:lock": "npm i --package-lock-only --ignore-scripts",
     "build": "npm run build:js:ads && npm run build:js:events && npm run build:js:maps && npm run build:js:share && npm run build:js:wfd",
     "build:js": "rollup -c",

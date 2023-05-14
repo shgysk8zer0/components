@@ -7,7 +7,7 @@ import { meta } from '../import.meta.js';
 import { getHTML } from '@shgysk8zer0/kazoo/http.js';
 import HTMLCustomElement from '../custom-element.js';
 
-const resolveURL = getURLResolver({ base: meta.url, path: './components/weather/' });
+const resolveURL = getURLResolver({ base: meta.url, path: './weather/' });
 const policy = createPolicy('weather-current#html', {
 	createHTML: input => input,
 });
