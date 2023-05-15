@@ -3,7 +3,8 @@ import { meta } from '../import.meta.js';
 import { getURLResolver } from '@shgysk8zer0/kazoo/utility.js';
 import { loadStylesheet } from '@shgysk8zer0/kazoo/loader.js';
 import { getHTML } from '@shgysk8zer0/kazoo/http.js';
-import { query, create, text, on, off } from '@shgysk8zer0/kazoo/dom.js';
+import { query, text, on, off } from '@shgysk8zer0/kazoo/dom.js';
+import { createElement } from '@shgysk8zer0/kazoo/elements.js';
 import { hasGa, send } from '@shgysk8zer0/kazoo/google-analytics.js';
 import { registerButton } from '@shgysk8zer0/kazoo/pwa-install.js';
 import { createPolicy } from '@shgysk8zer0/kazoo/trust.js';
@@ -167,12 +168,12 @@ registerCustomElement('install-prompt', class HTMLInstallPromptElement extends H
 			});
 
 			if (Array.isArray(features)) {
-				base.querySelector('[part="features"]').replaceChildren(...features.map(text => create('li', { text })));
+				base.querySelector('[part="features"]').replaceChildren(...features.map(text => createElement('li', { text })));
 			}
 
 			if (Array.isArray(categories) && categories.length !== 0) {
 				base.querySelector('[part="categories"]')
-					.replaceChildren(...categories.map(text => create('li', { text, part: ['category'] })));
+					.replaceChildren(...categories.map(text => createElement('li', { text, part: ['category'] })));
 			}
 
 			relatedApps.forEach(({ platform, url, id }) => {

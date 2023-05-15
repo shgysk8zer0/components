@@ -3,7 +3,7 @@ import { HTMLCustomButtonElement } from './custom.js';
 import { popup } from '@shgysk8zer0/kazoo/popup.js';
 import { getHTML } from '@shgysk8zer0/kazoo/http.js';
 import { hasGa, send } from '@shgysk8zer0/kazoo/google-analytics.js';
-import { meta } from '../../import.meta.js';
+import { meta } from '../import.meta.js';
 import { getURLResolver, callOnce } from '@shgysk8zer0/kazoo/utility.js';
 import { loadStylesheet } from '@shgysk8zer0/kazoo/loader.js';
 import { getString, setString, getBool, setBool, getURL, setURL } from '@shgysk8zer0/kazoo/attrs.js';
