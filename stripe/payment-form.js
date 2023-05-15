@@ -4,7 +4,7 @@ import { create, text } from '@shgysk8zer0/kazoo/dom.js';
 import { getURL, setURL, getBool, setBool, getString, setString } from '@shgysk8zer0/kazoo/attrs.js';
 import { getURLResolver, debounce } from '@shgysk8zer0/kazoo/utility.js';
 import { createSVG, createPath } from '@shgysk8zer0/kazoo/svg.js';
-import { meta } from '../../import.meta.js';
+import { meta } from '../import.meta.js';
 import { getStripeInstance, loadStripe, getCurrencySymbol } from './utils.js';
 
 const protectedData = new WeakMap();

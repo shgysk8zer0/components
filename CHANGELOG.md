@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.0.4] - 2023-05-15
+
+### Added
+- `<install-prompt>`
+- `<stripe-payment-for>`
+- `<disqus-comments>`
+- `<not-supported>`
+
 ## [v0.0.3] - 2023-05-14
 
 ### Added
