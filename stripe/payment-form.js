@@ -1,6 +1,7 @@
 import { loadStylesheet } from '@shgysk8zer0/kazoo/loader.js';
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
-import { create, text } from '@shgysk8zer0/kazoo/dom.js';
+import { text } from '@shgysk8zer0/kazoo/dom.js';
+import { createElement } from '@shgysk8zer0/kazoo/elements.js';
 import { getURL, setURL, getBool, setBool, getString, setString } from '@shgysk8zer0/kazoo/attrs.js';
 import { getURLResolver, debounce } from '@shgysk8zer0/kazoo/utility.js';
 import { createSVG, createPath } from '@shgysk8zer0/kazoo/svg.js';
@@ -105,7 +106,7 @@ export class HTMLStripePaymentFormElement extends HTMLElement {
 
 		const slotchange = debounce(() => this.updateTotal());
 
-		const form = create('form', {
+		const form = createElement('form', {
 			events: {
 				submit: async event => {
 					event.preventDefault();
@@ -143,19 +144,19 @@ export class HTMLStripePaymentFormElement extends HTMLElement {
 			},
 			part: ['form'],
 			children: [
-				create('section', {
+				createElement('section', {
 					id: 'overview',
 					part: ['overview'],
 					children: [
-						create('details', {
+						createElement('details', {
 							// open: true,
 							part: ['items-overview', 'text'],
 							classList: ['accordion'],
 							children: [
-								create('summary', {
+								createElement('summary', {
 									classList: ['cursor-pointer'],
 									children: [
-										create('slot', {
+										createElement('slot', {
 											name: 'cart-summary',
 											children: [
 												createSVG({
@@ -168,40 +169,40 @@ export class HTMLStripePaymentFormElement extends HTMLElement {
 														createPath('M14 36c-2.21 0-3.98 1.79-3.98 4s1.77 4 3.98 4 4-1.79 4-4-1.79-4-4-4zM2 4v4h4l7.19 15.17-2.7 4.9c-.31.58-.49 1.23-.49 1.93 0 2.21 1.79 4 4 4h24v-4H14.85c-.28 0-.5-.22-.5-.5 0-.09.02-.17.06-.24L16.2 26h14.9c1.5 0 2.81-.83 3.5-2.06l7.15-12.98c.16-.28.25-.61.25-.96 0-1.11-.9-2-2-2H10.43l-1.9-4H2zm32 32c-2.21 0-3.98 1.79-3.98 4s1.77 4 3.98 4 4-1.79 4-4-1.79-4-4-4z'),
 													]
 												}),
-												create('b', { text: ' Items in Cart' }),
+												createElement('b', { text: ' Items in Cart' }),
 											],
 										}),
 									],
 								}),
-								create('div', {
+								createElement('div', {
 									part: ['display-items', 'text'],
 									children: [
-										create('h4', { text: 'Items' }),
-										create('div', {
+										createElement('h4', { text: 'Items' }),
+										createElement('div', {
 											id: 'display-items-container',
 											children: [
-												create('slot', {
+												createElement('slot', {
 													name: 'displayitems',
 													events: { slotchange },
 													children: [
-														create('div', { text: 'No Items in cart.' }),
+														createElement('div', { text: 'No Items in cart.' }),
 													]
 												}),
 											]
 										})
 									]
 								}),
-								create('div', {
+								createElement('div', {
 									part: ['additional-display-items', 'text'],
 									children: [
-										create('h4', { text: 'Additional Items & Fees' }),
-										create('div', {
+										createElement('h4', { text: 'Additional Items & Fees' }),
+										createElement('div', {
 											id: 'additional-display-items-container',
 											children: [
-												create('slot', {
+												createElement('slot', {
 													name: 'additionaldisplayitems',
 													events: { slotchange },
-													children: create('div', { text: 'Nothing to display.' }),
+													children: createElement('div', { text: 'Nothing to display.' }),
 												}),
 											]
 										}),
@@ -210,38 +211,38 @@ export class HTMLStripePaymentFormElement extends HTMLElement {
 							]
 						}),
 						document.createElement('hr'),
-						create('div', {
+						createElement('div', {
 							part: ['text'],
 							children: [
-								create('b', { text: 'Total' }),
-								create('span', { text: ' ' }),
-								create('slot', { name: 'currency', text: '$' }),
-								create('slot', { name: 'total', text: '0.00' }),
+								createElement('b', { text: 'Total' }),
+								createElement('span', { text: ' ' }),
+								createElement('slot', { name: 'currency', text: '$' }),
+								createElement('slot', { name: 'total', text: '0.00' }),
 							]
 						})
 					]
 				}),
-				create('fieldset', {
+				createElement('fieldset', {
 					part: ['contact-section'],
 					classList: ['no-border'],
 					children: [
-						create('legend', {
+						createElement('legend', {
 							part: ['contact-legend', 'legend', 'text'],
 							children: [
-								create('slot', { text: 'Contact Info', slot: 'contact' }),
+								createElement('slot', { text: 'Contact Info', slot: 'contact' }),
 							]
 						}),
-						create('div', {
+						createElement('div', {
 							classList: ['form-group'],
 							part: ['contact'],
 							children: [
-								create('label', {
+								createElement('label', {
 									for: 'stripe-user-name',
 									classList: ['input-label', 'required'],
 									part: ['text'],
 									text: 'Full name',
 								}),
-								create('input', {
+								createElement('input', {
 									type: 'text',
 									name: 'name',
 									id: 'stripe-user-name',
@@ -252,17 +253,17 @@ export class HTMLStripePaymentFormElement extends HTMLElement {
 								})
 							]
 						}),
-						create('div', {
+						createElement('div', {
 							classList: ['form-group'],
 							part: ['email'],
 							children: [
-								create('label', {
+								createElement('label', {
 									for: 'stripe-email',
 									classList: ['input-label', 'required'],
 									part: ['text'],
 									text: 'Email',
 								}),
-								create('input', {
+								createElement('input', {
 									type: 'email',
 									name: 'email',
 									id: 'stripe-email',
@@ -275,48 +276,48 @@ export class HTMLStripePaymentFormElement extends HTMLElement {
 						}),
 					]
 				}),
-				create('fieldset', {
+				createElement('fieldset', {
 					part: ['payment-section'],
 					classList: ['no-border'],
 					children: [
-						create('legend', {
+						createElement('legend', {
 							part: ['legend', 'card-legend', 'text'],
 							children: [
-								create('slot', {
+								createElement('slot', {
 									name: 'card-label',
 									text: 'Card Details',
 								})
 							]
 						}),
-						create('slot', { name: 'stripe-payment' }),
+						createElement('slot', { name: 'stripe-payment' }),
 					],
 				}),
-				create('fieldset', {
+				createElement('fieldset', {
 					hidden: true,
 					part: ['shipping-section'],
 					classList: ['no-border'],
 					children: [
-						create('legend', {
+						createElement('legend', {
 							part: ['legend','shipping-legend', 'text'],
 							children: [
-								create('slot', {
+								createElement('slot', {
 									name: 'shipping-legend',
 									text: 'Shipping Info',
 								})
 							]
 						}),
-						create('slot', { name: 'stripe-shipping' }),
+						createElement('slot', { name: 'stripe-shipping' }),
 					],
 				}),
-				create('div', {
+				createElement('div', {
 					classList: ['flex', 'row', 'space-around'],
 					children:[
-						create('button', {
+						createElement('button', {
 							type: 'submit',
 							part: ['submit'],
 							classList: ['btn', 'btn-accept'],
 							children: [
-								create('slot', {
+								createElement('slot', {
 									name: 'submit',
 									text: 'Submit',
 								})
@@ -324,27 +325,27 @@ export class HTMLStripePaymentFormElement extends HTMLElement {
 						})
 					]
 				}),
-				create('div', {
+				createElement('div', {
 					classList: ['status-box', 'error'],
 					part: ['error'],
 				}),
 			]
 		});
 
-		shadow.append(create('slot', { name: 'header' }), form, create('slot', { name: 'footer' }));
+		shadow.append(createElement('slot', { name: 'header' }), form, createElement('slot', { name: 'footer' }));
 
 		/* Stripe elements cannot exist in ShadowDOM */
-		this.append(create('div', { slot: 'stripe-payment', id: 'payment-element' }));
+		this.append(createElement('div', { slot: 'stripe-payment', id: 'payment-element' }));
 
-		elements.create('payment', {
+		elements.createElement('payment', {
 			layout: { type: layout },
 		}).mount('#payment-element');
 
 		if (requestShipping) {
 			shadow.querySelector('[part~="shipping-section"]').hidden = false;
-			this.append(create('div', { slot: 'stripe-shipping', id: 'shipping-element' }));
+			this.append(createElement('div', { slot: 'stripe-shipping', id: 'shipping-element' }));
 
-			const shipping = elements.create('address', {
+			const shipping = elements.createElement('address', {
 				mode: 'shipping',
 				allowedCountries: this.allowedCountries,
 				blockPoBoxes: !this.allowPOBoxes,
@@ -427,21 +428,21 @@ export class HTMLStripePaymentFormElement extends HTMLElement {
 		};
 
 		if (Array.isArray(val) && val.length !== 0) {
-			this.append(...val.map(({ label, amount: { value, currency = 'USD' }}) => create('div', {
+			this.append(...val.map(({ label, amount: { value, currency = 'USD' }}) => createElement('div', {
 				slot: 'additionaldisplayitems',
 				itemtype: 'https://schema.org/Offer',
 				itemscope: true,
 				classList: ['display-item'],
 				children: [
-					create('b', { itemprop: 'name', text: label, styles }),
-					create('span', {
+					createElement('b', { itemprop: 'name', text: label, styles }),
+					createElement('span', {
 						children: [
-							create('span', {
+							createElement('span', {
 								itemprop: 'priceCurrency',
 								content: currency,
 								text: getCurrencySymbol(currency),
 							}),
-							create('span', { itemprop: 'price', text: value.toFixed(2) }),
+							createElement('span', { itemprop: 'price', text: value.toFixed(2) }),
 						]
 					}),
 				]
@@ -468,21 +469,21 @@ export class HTMLStripePaymentFormElement extends HTMLElement {
 		};
 
 		if (Array.isArray(val) && val.length !== 0) {
-			this.append(...val.map(({ label, amount: { value, currency = 'USD' }}) => create('div', {
+			this.append(...val.map(({ label, amount: { value, currency = 'USD' }}) => createElement('div', {
 				slot: 'displayitems',
 				itemtype: 'https://schema.org/Offer',
 				itemscope: true,
 				classList: ['display-item'],
 				children: [
-					create('b', { itemprop: 'name', text: label, styles }),
-					create('span', {
+					createElement('b', { itemprop: 'name', text: label, styles }),
+					createElement('span', {
 						children: [
-							create('span', {
+							createElement('span', {
 								itemprop: 'priceCurrency',
 								content: currency,
 								text: getCurrencySymbol(currency),
 							}),
-							create('span', { itemprop: 'price', text: value.toFixed(2) }),
+							createElement('span', { itemprop: 'price', text: value.toFixed(2) }),
 						]
 					}),
 				]
@@ -504,7 +505,7 @@ export class HTMLStripePaymentFormElement extends HTMLElement {
 		clearSlot('total', protectedData.get(this).shadow);
 
 		if (typeof val === 'number' && val > 0) {
-			this.append(create('span', {
+			this.append(createElement('span', {
 				slot: 'total',
 				text: val.toFixed(2),
 			}));
