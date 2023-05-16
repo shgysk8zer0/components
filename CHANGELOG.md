@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.0.6] - 2023-05-15
+
+### Fixed
+- Include minified scripts when publishing
+
 ## [v0.0.5] - 2023-05-15
 
 ### Fixed
