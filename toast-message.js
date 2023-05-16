@@ -2,7 +2,7 @@ import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
 import { loadStylesheet } from '@shgysk8zer0/kazoo/loader.js';
 import { createElement, createSlot } from '@shgysk8zer0/kazoo/elements.js';
 import { createXIcon } from '@shgysk8zer0/kazoo/icons.js';
-import { meta } from '../import.meta.js';
+import { meta } from './import.meta.js';
 
 const protectedData = new WeakMap();
 
