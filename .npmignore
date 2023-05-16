@@ -16,5 +16,4 @@ rollup.config.js
 rollup.*.config.js
 *.tgz
 *.log
-*.min.js
 *.out.js
