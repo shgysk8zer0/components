@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Remove all `eslint`, `stylelint`, & `rollup` to use `@shgysk8zer0/js-utils` & `@shgysk8zer0/css-utils`
+
 ## [v0.0.9] - 2023-05-16
 
 ### Added
