@@ -1,16 +1,13 @@
 /* eslint-env node */
-import terser from '@rollup/plugin-terser';
-import { rollupImport } from '@shgysk8zer0/rollup-import';
+import { getConfig } from '@shgysk8zer0/js-utils/rollup';
+import { rollupImport } from '@shgysk8zer0/rollup-import/import';
+import { importmap } from '@shgysk8zer0/importmap';
 
-export default {
-	input: 'weather/current.js',
-	output: {
-		file: 'weather/current.min.js',
-		format: 'iife',
-		sourcemap: true,
-	},
+export default getConfig('./weather/current.js', {
 	plugins: [
-		rollupImport('importmap.json'),
-		terser(),
+		rollupImport(importmap),
 	],
-};
+	minify: true,
+	sourcemap: true,
+	format: 'iife',
+});
