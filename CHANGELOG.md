@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Create `<reddit-posts>`
 
 ### Changed
+- Update GitHub Release Action
 - Remove all `eslint`, `stylelint`, & `rollup` to use `@shgysk8zer0/js-utils` & `@shgysk8zer0/css-utils`
 
 ## [v0.0.9] - 2023-05-16
