@@ -1,15 +1,19 @@
-// import '@shgysk8zer0/kazoo/harden.js';
-import '@shgysk8zer0/polyfills';
+import '@shgysk8zer0/kazoo/harden.js';
+import '@shgysk8zer0/polyfills/all.js';
 import '@shgysk8zer0/kazoo/harden.js';
 import { createElement } from '@shgysk8zer0/kazoo/elements.js';
 import { konami } from '@shgysk8zer0/konami';
-import { name, version } from '../../consts.js';
+import { getJSON } from '@shgysk8zer0/kazoo/http.js';
+import { description as setDescription } from '@shgysk8zer0/kazoo/meta.js';
 
 trustedTypes.createPolicy('default', {
-	createHTML: input => new Sanitizer().sanitizeFor('diiv', input).innerHTML,
+	createHTML: input => new Sanitizer().sanitizeFor('div', input).innerHTML,
 });
 
-document.title = `${name} v${version}`;
+getJSON(import.meta.resolve('../../package.json')).then(({ name, version, description }) => {
+	document.title = `${name} v${version}`;
+	setDescription(description);
+});
 
 Promise.all([
 	customElements.whenDefined('youtube-player'),

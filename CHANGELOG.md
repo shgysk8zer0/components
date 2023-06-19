@@ -8,10 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Create `<reddit-posts>`
+- Add `rollupImportMeta` plugin
 
 ### Changed
 - Update GitHub Release Action
 - Remove all `eslint`, `stylelint`, & `rollup` to use `@shgysk8zer0/js-utils` & `@shgysk8zer0/css-utils`
+- Get name, version, & URL from `package.json` instead of `consts.js`
+- Update importmap
+
+### Removed
+- Delete `consts.js`
 
 ## [v0.0.9] - 2023-05-16
 
