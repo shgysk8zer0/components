@@ -12,3 +12,4 @@ import '../../youtube/player.js';
 import '../../weather/current.js';
 import '../../weather/forecast.js';
 import '../../button/share-to.js';
+import '../../krv/events.js';

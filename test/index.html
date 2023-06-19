@@ -6,8 +6,8 @@
 		<meta name="color-scheme" content="light dark" />
 		<meta http-equiv="Content-Security-Policy" content="
 			default-src 'self';
-			script-src 'self' https://unpkg.com/ https://cdn.kernvalley.us/js/ 'nonce-2922730b-7e42-4420-b730-1c98df161582';
-			style-src 'self' https://cdn.kernvalley.us/css/ https://unpkg.com;
+			script-src 'self' https://unpkg.com/@shgysk8zer0/ https://unpkg.com/leaflet@1.9.3/ 'nonce-2922730b-7e42-4420-b730-1c98df161582';
+			style-src 'self' https://cdn.kernvalley.us/css/ https://unpkg.com blob:;
 			font-src 'self' https://cdn.kernvalley.us/fonts/;
 			connect-src 'self' *.kernvalley.us https://baconipsum.com/api/ https://api.github.com/ https://api.openweathermap.org/data/2.5/;
 			child-src  https://www.youtube-nocookie.com/embed/;
@@ -20,11 +20,10 @@
 		<script type="importmap" nonce="2922730b-7e42-4420-b730-1c98df161582">
 			{
 				"imports": {
-					"std-js/": "https://cdn.kernvalley.us/js/std-js/",
-					"@shgysk8zer0/kazoo/": "https://unpkg.com/@shgysk8zer0/kazoo@0.0.9/",
-					"@shgysk8zer0/polyfills": "https://unpkg.com/@shgysk8zer0/polyfills@0.0.5/all.min.js",
-					"@shgysk8zer0/polyfills/": "https://unpkg.com/@shgysk8zer0/polyfills@0.0.5/",
-					"@shgysk8zer0/konami": "https://unpkg.com/@shgysk8zer0/konami@1.0.9/konami.js",
+					"@shgysk8zer0/kazoo/": "https://unpkg.com/@shgysk8zer0/kazoo@0.0.16/",
+					"@shgysk8zer0/polyfills": "https://unpkg.com/@shgysk8zer0/polyfills@0.1.2/all.min.js",
+					"@shgysk8zer0/polyfills/": "https://unpkg.com/@shgysk8zer0/polyfills@0.1.2/",
+					"@shgysk8zer0/konami": "https://unpkg.com/@shgysk8zer0/konami@1.0.10/konami.js",
 					"@shgysk8zer0/components/": "../",
 					"@kernvalley/components/": "../krv/",
 					"leaflet": "https://unpkg.com/leaflet@1.9.3/dist/leaflet-src.esm.js"
@@ -53,6 +52,7 @@
 		</main>
 		<aside id="sidebar">
 			<weather-current appid="41ff0542577756523c5fcfaaeabe89d7" postalcode="93238"></weather-current>
+			<krv-events></krv-events>
 			<krv-ad>
 				<img slot="image" src="https://cdn.kernvalley.us/img/branding/events.kernvalley.us.svg" loading="lazy" decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" alt="KRV Events Logo" itemprop="image" role="img" width="92" height="92" />
 				<b slot="label" itemprop="name">Kern Valley Events</b>
