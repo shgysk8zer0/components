@@ -16,9 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Get name, version, & URL from `package.json` instead of `consts.js`
 - Update importmap
 
-### Removed
-- Delete `consts.js`
-
 ## [v0.0.9] - 2023-05-16
 
 ### Added
