@@ -1,6 +1,6 @@
 {
   "name": "@shgysk8zer0/components",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "A collection of custom elements / web components",
   "main": "index.js",
   "private": false,
@@ -32,6 +32,7 @@
     "build:js:share": "if [ -f 'rollup.share.config.js' ]; then rollup -c rollup.share.config.js; fi",
     "build:js:weather": "if [ -f 'rollup.weather.config.js' ]; then rollup -c rollup.weather.config.js; fi",
     "build:js:wfd": "if [ -f 'rollup.wfd.config.js' ]; then rollup -c rollup.wfd.config.js; fi",
+    "build:js:mark-down": "rollup -c rollup.mark-down.config.js",
     "fix": "npm run fix:js && npm run fix:css",
     "fix:js": "eslint . --fix",
     "fix:css": "if [ -f './stylelintrc.json' ]; then stylelint ${npm_package_config_dir_css} --fix; fi",

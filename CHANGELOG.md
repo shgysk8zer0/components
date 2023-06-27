@@ -6,7 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.0.10] - 2023-06-26
+
 ### Added
+- Create `<mark-down>` & `<github-md-file>` & `<github-readme>`
 - Create `<reddit-posts>`
 - Add `rollupImportMeta` plugin
 

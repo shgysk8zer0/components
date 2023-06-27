@@ -1,12 +1,8 @@
+@import url("https://unpkg.com/@shgysk8zer0/core-css@2.4.3/theme/default/index.css");
+@import url("https://unpkg.com/@shgysk8zer0/core-css@2.4.3/element.css");
+@import url("https://unpkg.com/@shgysk8zer0/core-css@2.4.3/class-rules.css");
+@import url("https://unpkg.com/@shgysk8zer0/core-css@2.4.3/scrollbar.css");
 @import url("./vars.css");
-
-:root {
-	box-sizing: border-box;
-}
-
-* {
-	box-sizing: inherit;
-}
 
 body {
 	display: grid;
@@ -50,16 +46,4 @@ body {
 dialog::backdrop {
 	background-color: rgba(0, 0, 0, 0.7);
 	backdrop-filter: blur(3px);
-}
-
-.fixed {
-	position: fixed;
-}
-
-.bottom {
-	bottom: 0;
-}
-
-.right {
-	right: 0;
 }

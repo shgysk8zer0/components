@@ -6,10 +6,10 @@
 		<meta name="color-scheme" content="light dark" />
 		<meta http-equiv="Content-Security-Policy" content="
 			default-src 'self';
-			script-src 'self' https://unpkg.com/@shgysk8zer0/ https://unpkg.com/leaflet@1.9.3/ 'nonce-2922730b-7e42-4420-b730-1c98df161582';
-			style-src 'self' https://cdn.kernvalley.us/css/ https://unpkg.com blob:;
+			script-src 'self' https://unpkg.com/ 'nonce-2922730b-7e42-4420-b730-1c98df161582';
+			style-src 'self' https://unpkg.com blob:;
 			font-src 'self' https://cdn.kernvalley.us/fonts/;
-			connect-src 'self' *.kernvalley.us https://baconipsum.com/api/ https://api.github.com/ https://api.openweathermap.org/data/2.5/;
+			connect-src 'self' *.kernvalley.us https://unpkg.com https://baconipsum.com/api/ https://api.github.com/ https://raw.githubusercontent.com/shgysk8zer0/ https://api.openweathermap.org/data/2.5/;
 			child-src  https://www.youtube-nocookie.com/embed/;
 			img-src * data: blob;
 			trusted-types default empty#html empty#script sanitizer-raw#html purify-raw#html purify#html github#gist dompurify share-to-buttons#html weather-current#html weather-forecast#html krv-events#html codepen#script-url module#script-url purify-raw#html purify#html pwa-install html-notification#script spotify-player#html spotify#script-url krv-contact#html github-user#html github-repo#html youtube#embed;
@@ -20,13 +20,17 @@
 		<script type="importmap" nonce="2922730b-7e42-4420-b730-1c98df161582">
 			{
 				"imports": {
-					"@shgysk8zer0/kazoo/": "https://unpkg.com/@shgysk8zer0/kazoo@0.0.16/",
+					"@shgysk8zer0/kazoo/": "https://unpkg.com/@shgysk8zer0/kazoo@0.0.17/",
 					"@shgysk8zer0/polyfills": "https://unpkg.com/@shgysk8zer0/polyfills@0.1.2/all.min.js",
 					"@shgysk8zer0/polyfills/": "https://unpkg.com/@shgysk8zer0/polyfills@0.1.2/",
 					"@shgysk8zer0/konami": "https://unpkg.com/@shgysk8zer0/konami@1.0.10/konami.js",
+					"@shgysk8zer0/jswaggersheets": "https://unpkg.com/@shgysk8zer0/jswaggersheets@1.0.3/swagger.js",
 					"@shgysk8zer0/components/": "../",
 					"@kernvalley/components/": "../krv/",
-					"leaflet": "https://unpkg.com/leaflet@1.9.3/dist/leaflet-src.esm.js"
+					"leaflet": "https://unpkg.com/leaflet@1.9.3/dist/leaflet-src.esm.js",
+					"marked": "https://unpkg.com/marked@5.1.0/src/marked.js",
+					"marked-highlight": "https://unpkg.com/marked-highlight@2.0.1/src/index.js",
+					"highlight.js": "https://unpkg.com/@highlightjs/cdn-assets@11.8.0/es/highlight.min.js"
 				}
 			}
 		</script>
@@ -41,10 +45,51 @@
 		</header>
 		<nav id="nav">
 			<button is="app-list">Apps</button>
+			<button type="button" class="btn btn-default" data-user="shgysk8zer0" data-repo="kazoo" data-branch="master">Kazoo README</button>
+			<button type="button" class="btn btn-default" data-user="shgysk8zer0" data-repo="polyfills" data-branch="master">Polyfills README</button>
 			<share-to-button target="twitter"></share-to-button>
 			<share-to-button target="linkedin"></share-to-button>
 		</nav>
 		<main id="main">
+			<mark-down>
+				<h1 slot="header">Inline</h1>
+				<template slot="content">
+					# This is from a `&lt;template&gt;`
+
+					- item 1
+					- item 2
+						- subitem 1
+						- subitem 2
+							- sub-sub item
+
+					```css
+						.foo {
+							display: none;
+						}
+					```
+
+					```bash
+						$ npm i @shgysk8zer0/components
+					```
+
+					```php
+						&lt;?='Hello, World' + $_GET['name']?&gt;
+					```
+
+					![missing image](https://cdn.kernvalley.us/img/raster/missing-image.png)
+
+					| sun | mon | tues | wed | thurs | fri | sat |
+					| --- | --- | ---- | --- | ----- | --- | --- |
+					| 25  | 26  | 27   | 28  | 29    | 30  | 1   |
+					| 2   | 3   | 4    | 5   | 6     | 7   | 8   |
+				</template>
+			</mark-down>
+			<github-readme user="shgysk8zer0" repo="components" branch="master">
+				<h2 slot="header">README</h2>
+			</github-readme>
+			<github-md-file user="shgysk8zer0" repo="components" branch="master" file="CHANGELOG.md">
+				<h2 slot="header">CHANGELOG</h2>
+			</github-md-file>
 			<loading-spinner></loading-spinner>
 			<weather-forecast appid="41ff0542577756523c5fcfaaeabe89d7" postalcode="93238"></weather-forecast>
 			<bacon-ipsum></bacon-ipsum>
