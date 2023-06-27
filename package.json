@@ -1,6 +1,6 @@
 {
   "name": "@shgysk8zer0/components",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "A collection of custom elements / web components",
   "main": "index.js",
   "private": false,
@@ -24,7 +24,7 @@
     "prepare": "npm run build:js",
     "start": "http-server ./ -c-1 --port ${npm_package_config_serve_port} --gzip true --brotli true -a ${npm_package_config_serve_domain} -o ${npm_package_config_serve_path}",
     "create:lock": "npm i --package-lock-only --ignore-scripts",
-    "build": "npm run build:js:ads && npm run build:js:events && npm run build:js:maps && npm run build:js:share && npm run build:js:wfd",
+    "build": "npm run build:js:ads && npm run build:js:events && npm run build:js:maps && npm run build:js:share && npm run build:js:wfd && npm run build:js:mark-down",
     "build:js": "rollup -c rollup.config.js",
     "build:js:ads": "if [ -f 'rollup.krv-ad.config.js' ]; then rollup -c rollup.krv-ad.config.js; fi",
     "build:js:events": "if [ -f 'rollup.events.config.js' ]; then rollup -c rollup.events.config.js; fi",
