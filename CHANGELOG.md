@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.0.13] - 2023-07-01
+
+### Added
+- Add `importmap.js`
+
+### Changed
+- Use `@shgysk8zer0/kazoo/markdown` in `<mark-down>`
+
+### Removed
+- Uninstall `@shgysk8zer0/importmap`
+
 ## [v0.0.12] - 2023-06-26
 
 ### Fixed
