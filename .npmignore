@@ -19,5 +19,3 @@ rollup.*.config.js
 *.gz
 *.log
 *.out.js
-*.min.*
-*.map
