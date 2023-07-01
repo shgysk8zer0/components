@@ -2,7 +2,7 @@
 import { getConfig } from '@shgysk8zer0/js-utils/rollup';
 import { rollupImport } from '@shgysk8zer0/rollup-import/import';
 import { rollupImportMeta } from '@shgysk8zer0/rollup-import/meta';
-import { importmap } from '@shgysk8zer0/importmap';
+import { importmap } from './ipmortmap.js';
 import { readJSONFile } from '@shgysk8zer0/npm-utils/json';
 
 const { name, version } = await readJSONFile('./package.json');
