@@ -1,6 +1,6 @@
 {
   "name": "@shgysk8zer0/components",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A collection of custom elements / web components",
   "private": false,
   "type": "module",
@@ -53,15 +53,35 @@
   ],
   "author": "Chris Zuber <admin@kernvalley.us>",
   "license": "MIT",
+  "funding": [
+    {
+      "type": "librepay",
+      "url": "https://liberapay.com/shgysk8zer0"
+    },
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/shgysk8zer0"
+    }
+  ],
   "bugs": {
     "url": "https://github.com/shgysk8zer0/components/issues"
   },
   "homepage": "https://github.com/shgysk8zer0/components#readme",
   "devDependencies": {
+    "@shgysk8zer0/core-css": "^2.5.0",
     "@shgysk8zer0/css-utils": "^1.0.0",
     "@shgysk8zer0/js-utils": "^1.0.0",
+    "@shgysk8zer0/polyfills": "^0.2.3",
     "@shgysk8zer0/rollup-import": "^1.1.1",
     "htmlhint": "^1.1.4",
     "http-server": "^14.1.1"
+  },
+  "peerDependencies": {
+    "@highlightjs/cdn-assets": "^11.8.0",
+    "@shgysk8zer0/jswaggersheets": "^1.1.0",
+    "@shgysk8zer0/kazoo": "^0.2.2",
+    "leaflet": "^1.9.4",
+    "marked": "^5.1.1",
+    "marked-highlight": "^2.0.1"
   }
 }
