@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.1.2] - 2023-08-22
+
+### Added
+- `<firebase-sign-in>`
+- `<firebase-sign-up>`
+- `<firebase-password-reset>`
+- `<firebase-confirm-reset>`
+
 ## [v0.1.1] - 2023-07-09
 
 ### Added

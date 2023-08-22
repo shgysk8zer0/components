@@ -6,7 +6,7 @@
 		<meta name="color-scheme" content="light dark" />
 		<meta http-equiv="Content-Security-Policy" content="
 			default-src 'self';
-			script-src 'self' https://unpkg.com/ 'nonce-2922730b-7e42-4420-b730-1c98df161582';
+			script-src 'self' https://unpkg.com/ https://www.gstatic.com/firebasejs/ 'nonce-2922730b-7e42-4420-b730-1c98df161582';
 			style-src 'self' https://unpkg.com blob:;
 			font-src 'self' https://cdn.kernvalley.us/fonts/;
 			connect-src 'self' *.kernvalley.us https://unpkg.com https://baconipsum.com/api/ https://api.github.com/ https://raw.githubusercontent.com/shgysk8zer0/ https://api.openweathermap.org/data/2.5/;
@@ -27,6 +27,7 @@
 					"@shgysk8zer0/jswaggersheets": "../node_modules/@shgysk8zer0/jswaggersheets/swagger.js",
 					"@shgysk8zer0/components/": "../",
 					"@kernvalley/components/": "../krv/",
+					"firebase/": "https://www.gstatic.com/firebasejs/9.23.0/",
 					"leaflet": "../node_modules/leaflet/dist/leaflet-src.esm.js",
 					"marked": "../node_modules/marked/src/marked.js",
 					"marked-highlight": "../node_modules/marked-highlight/src/index.js",
