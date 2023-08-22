@@ -45,6 +45,7 @@
       "MediaMetadata": "readonly",
       "Sanitizer": "readonly",
       "scheduler": "readonly",
-      "trustedTypes": "readonly"
+      "trustedTypes": "readonly",
+      "PasswordCredential": "readonly"
     }
 }
