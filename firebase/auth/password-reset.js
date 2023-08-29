@@ -1,7 +1,8 @@
 import { createElement, createInput, createSlot } from '@shgysk8zer0/kazoo/elements.js';
 import { createMailIcon, createCheckIcon, createXIcon } from '@shgysk8zer0/kazoo/icons.js';
 import { getString, setString } from '@shgysk8zer0/kazoo/attrs.js';
-import { HTMLFirebaseAuthElement, getAuth, iconOptions, styles } from './auth.js';
+import { errorToEvent } from '@shgysk8zer0/kazoo/utility.js';
+import { HTMLFirebaseAuthElement, getAuth, iconOptions } from './auth.js';
 import { sendPasswordResetEmail } from 'firebase/firebase-auth.js';
 
 const protectedData = new WeakMap();
@@ -24,11 +25,13 @@ export class HTMLFirebasePasswordResetFormElement extends HTMLFirebaseAuthElemen
 		const shadow = this.attachShadow({ mode: 'closed' });
 		const internals = this.attachInternals();
 
-		styles.then(sheets => shadow.adoptedStyleSheets = sheets);
-
 		shadow.append(createElement('form', {
 			classList: ['system-ui'],
 			events: {
+				reset: event => {
+					event.stopPropagation();
+					this.dispatchEvent(new Event('abort'));
+				},
 				submit: async event => {
 					event.preventDefault();
 					event.stopPropagation();
@@ -36,7 +39,7 @@ export class HTMLFirebasePasswordResetFormElement extends HTMLFirebaseAuthElemen
 
 					try {
 						const data = new FormData(target);
-						target.querySelectorAll('button, input').forEach(el => el.disabled = true);
+						this.disabled = true;
 						const auth = await getAuth();
 						// @TODO Get additional info from webapp manifest
 						const actionCodeSettings = {
@@ -47,20 +50,10 @@ export class HTMLFirebasePasswordResetFormElement extends HTMLFirebaseAuthElemen
 						await sendPasswordResetEmail(auth, data.get('email'), actionCodeSettings);
 						this.dispatchEvent(new Event('success'));
 					} catch(err) {
-						const errEvent = new ErrorEvent('error', {
-							error: err,
-							message: err.message,
-							filename: err.fileName,
-							colno: err.columnNumber,
-							lineno: err.lineNumber,
-						});
-
+						const errEvent = errorToEvent('error', err);
 						this.dispatchEvent(errEvent);
-						const errMessage = target.querySelector('.error');
-						errMessage.textContent = err.message;
-						setTimeout(() => errMessage.replaceChildren(), 3000);
 					} finally {
-						target.querySelectorAll('button, input').forEach(el => el.disabled = false);
+						this.disabled = false;
 					}
 				}
 			},

@@ -1,7 +1,11 @@
 import { getBool, setBool, getString, setString, getInt, setInt } from '@shgysk8zer0/kazoo/attrs.js';
-const attachInternals = HTMLElement.prototype.attachInternals;
 
 const protectedData = new WeakMap();
+
+const symbols = {
+	internals: Symbol('internals'),
+	shadow: Symbol('shadow'),
+};
 
 export const STATES = {
 	checked: '--checked',
@@ -14,15 +18,33 @@ export const STATES = {
 };
 
 export class HTMLCustomInputElement extends HTMLElement {
+	constructor() {
+		super();
+		Object.defineProperties(this, {
+			[symbols.internals]: {
+				value: null,
+				enumerable: false,
+				configurable: false,
+				writable: true,
+			},
+			[symbols.shadow]: {
+				value: null,
+				enumerable: false,
+				configurable: false,
+				writable: true,
+			},
+		});
+	}
+
 	attachInternals() {
-		const internals = attachInternals.call(this);
+		const internals = super.attachInternals;
 		protectedData.set(this, internals);
 		return internals;
 	}
 
 	// call `super.attributeChangedCallback(name, oldVal, newVal)`
 	attributeChangedCallback(name, oldVal, newVal) {
-		const internals = protectedData.get(this);
+		const internals = this[symbols.internals];
 
 		switch(name) {
 			case 'required':
@@ -52,7 +74,7 @@ export class HTMLCustomInputElement extends HTMLElement {
 			this.attachInternals();
 		}
 
-		const internals = protectedData.get(this);
+		const internals = this[symbols.internals];
 
 		if (! (typeof internals.role === 'string' || typeof this.role === 'string')) {
 			this.role = 'input';
@@ -69,7 +91,7 @@ export class HTMLCustomInputElement extends HTMLElement {
 
 	// Call `super.disconnectedCallback()` when overriding
 	disconnectedCallback() {
-		const internals = protectedData.get(this);
+		const internals = this[symbols.internals];
 
 		if (internals._associateForm instanceof Function) {
 			internals._associateForm(null, this);
@@ -83,9 +105,9 @@ export class HTMLCustomInputElement extends HTMLElement {
 	// Call `super.formDisabledCallback(disabled)` when overriding
 	formDisabledCallback(disabled) {
 		if (disabled) {
-			protectedData.get(this).states.add(STATES.disabled);
+			this[symbols.internals].states.add(STATES.disabled);
 		} else {
-			protectedData.get(this).states.delete(STATES.disabled);
+			this[symbols.internals].states.delete(STATES.disabled);
 		}
 	}
 
@@ -98,15 +120,11 @@ export class HTMLCustomInputElement extends HTMLElement {
 	}
 
 	get form() {
-		return protectedData.get(this).form;
-	}
-
-	get internals() {
-		return protectedData.get(this);
+		return this[symbols.internals].form;
 	}
 
 	get labels() {
-		return protectedData.get(this).labels;
+		return this[symbols.internals].labels;
 	}
 
 	get maxLength() {
@@ -142,15 +160,15 @@ export class HTMLCustomInputElement extends HTMLElement {
 	}
 
 	get validationMessage() {
-		return protectedData.get(this).validationMessage;
+		return this[symbols.internals].validationMessage;
 	}
 
 	get validity() {
-		return protectedData.get(this).validity;
+		return this[symbols.internals].validity;
 	}
 
 	get willValidate() {
-		return protectedData.get(this).willValidate;
+		return this[symbols.internals].willValidate;
 	}
 
 	// `[...HTMLCustomInputElement.observedAttributes, ...]`

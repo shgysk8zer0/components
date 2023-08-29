@@ -1,6 +1,7 @@
 import { createElement, createInput, createSlot } from '@shgysk8zer0/kazoo/elements.js';
 import { createMailIcon, createDialogPasswordIcon, createSignUpIcon, createXIcon, createPersonIcon } from '@shgysk8zer0/kazoo/icons.js';
-import { HTMLFirebaseAuthElement, getAuth, iconOptions, styles } from './auth.js';
+import { errorToEvent } from '@shgysk8zer0/kazoo/utility.js';
+import { HTMLFirebaseAuthElement, getAuth, iconOptions } from './auth.js';
 import { updateProfile } from 'firebase/firebase-auth.js';
 
 const protectedData = new WeakMap();
@@ -11,11 +12,13 @@ export class HTMLFirebaseUpdateProfileFormElement extends HTMLFirebaseAuthElemen
 		const shadow = this.attachShadow({ mode: 'closed' });
 		const internals = this.attachInternals();
 
-		styles.then(sheets => shadow.adoptedStyleSheets = sheets);
-
 		shadow.append(createElement('form', {
 			classList: ['system-ui'],
 			events: {
+				reset: event => {
+					event.stopPropagation();
+					this.dispatchEvent(new Event('abort'));
+				},
 				submit: async event => {
 					event.preventDefault();
 					event.stopPropagation();
@@ -36,18 +39,8 @@ export class HTMLFirebaseUpdateProfileFormElement extends HTMLFirebaseAuthElemen
 							this.dispatchEvent(new CustomEvent('success', { detail: currentUser }));
 						}
 					} catch(err) {
-						const errEvent = new ErrorEvent('error', {
-							error: err,
-							message: err.message,
-							filename: err.fileName,
-							colno: err.columnNumber,
-							lineno: err.lineNumber,
-						});
-
+						const errEvent = errorToEvent('error', err);
 						this.dispatchEvent(errEvent);
-						const errMessage = target.querySelector('.error');
-						errMessage.textContent = err.message;
-						setTimeout(() => errMessage.replaceChildren(), 3000);
 					} finally {
 						target.querySelectorAll('button, input').forEach(el => el.disabled = false);
 					}
@@ -93,7 +86,7 @@ export class HTMLFirebaseUpdateProfileFormElement extends HTMLFirebaseAuthElemen
 									classList: ['input-label', 'required'],
 									part: ['label'],
 									children: [
-										createSlot('email-icon', { children: [createMailIcon(iconOptions)]}),
+										createSlot('email-icon', { children: [createMailIcon(iconOptions)] }),
 										createSlot('email-label', { text: 'Email' }),
 									]
 								}),
@@ -144,7 +137,6 @@ export class HTMLFirebaseUpdateProfileFormElement extends HTMLFirebaseAuthElemen
 							type: 'submit',
 							classList: ['btn', 'btn-accept'],
 							part: ['btn'],
-							// disabled: true,
 							children: [
 								createSlot('register-icon', { children: [createSignUpIcon(iconOptions)] }),
 								createSlot('register-label', { text: 'Sign-Up' }),

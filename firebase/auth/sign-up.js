@@ -1,7 +1,8 @@
 import { createElement, createInput, createSlot } from '@shgysk8zer0/kazoo/elements.js';
 import { createMailIcon, createDialogPasswordIcon, createSignUpIcon, createXIcon, createPersonIcon } from '@shgysk8zer0/kazoo/icons.js';
+import { errorToEvent } from '@shgysk8zer0/kazoo/utility.js';
 import { createGravatarURL } from '@shgysk8zer0/kazoo/gravatar.js';
-import { HTMLFirebaseAuthElement, getAuth, iconOptions , styles} from './auth.js';
+import { HTMLFirebaseAuthElement, getAuth, iconOptions } from './auth.js';
 import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from 'firebase/firebase-auth.js';
 
 const protectedData = new WeakMap();
@@ -26,11 +27,13 @@ export class HTMLFirebaseSignUpFormElement extends HTMLFirebaseAuthElement {
 		const shadow = this.attachShadow({ mode: 'closed' });
 		const internals = this.attachInternals();
 
-		styles.then(sheets => shadow.adoptedStyleSheets = sheets);
-
 		shadow.append(createElement('form', {
 			classList: ['system-ui'],
 			events: {
+				reset: event => {
+					event.stopPropagation();
+					this.dispatchEvent(new Event('abort'));
+				},
 				submit: async event => {
 					event.preventDefault();
 					event.stopPropagation();
@@ -42,18 +45,8 @@ export class HTMLFirebaseSignUpFormElement extends HTMLFirebaseAuthElement {
 						const user = await register(data);
 						this.dispatchEvent(new CustomEvent('success', { detail: { user }}));
 					} catch(err) {
-						const errEvent = new ErrorEvent('error', {
-							error: err,
-							message: err.message,
-							filename: err.fileName,
-							colno: err.columnNumber,
-							lineno: err.lineNumber,
-						});
-
+						const errEvent = errorToEvent('error', err);
 						this.dispatchEvent(errEvent);
-						const errMessage = target.querySelector('.error');
-						errMessage.textContent = err.message;
-						setTimeout(() => errMessage.replaceChildren(), 3000);
 					} finally {
 						target.querySelectorAll('button, input').forEach(el => el.disabled = false);
 					}
