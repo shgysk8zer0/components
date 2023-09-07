@@ -1,25 +1,24 @@
+import { HTMLFirebaseAuthElement, getAuth, iconOptions, styles } from '@shgysk8zer0/components/firebase/auth/auth.js';
 import { createElement, createInput, createSlot } from '@shgysk8zer0/kazoo/elements.js';
-import { createLockIcon, createDialogPasswordIcon, createCheckIcon, createXIcon } from '@shgysk8zer0/kazoo/icons.js';
+import { createLockIcon, createCheckIcon, createXIcon } from '@shgysk8zer0/kazoo/icons.js';
 import { getString, setString } from '@shgysk8zer0/kazoo/attrs.js';
-import { errorToEvent } from '@shgysk8zer0/kazoo/utility.js';
-import { HTMLFirebaseAuthElement, getAuth, iconOptions } from './auth.js';
-import { confirmPasswordReset, verifyPasswordResetCode } from 'firebase/firebase-auth.js';
+import { applyActionCode, checkActionCode } from 'firebase/firebase-auth.js';
 
 const protectedData = new WeakMap();
 
-export class HTMLFirebaseConfirmResetFormElement extends HTMLFirebaseAuthElement {
+// @TODO Determine if this should be disabled on sign-in/sign-out
+export class HTMLFirebaseVerifyEmailFormElement extends HTMLFirebaseAuthElement {
 	constructor() {
 		super();
 		const shadow = this.attachShadow({ mode: 'closed' });
 		const internals = this.attachInternals();
 
+		styles.then(sheets => shadow.adoptedStyleSheets = sheets);
+
 		shadow.append(createElement('form', {
 			classList: ['system-ui'],
 			events: {
-				reset: event => {
-					event.stopPropagation();
-					this.dispatchEvent(new Event('abort'));
-				},
+				reset: () => this.dispatchEvent(new Event('abort')),
 				submit: async event => {
 					event.preventDefault();
 					event.stopPropagation();
@@ -27,15 +26,25 @@ export class HTMLFirebaseConfirmResetFormElement extends HTMLFirebaseAuthElement
 
 					try {
 						const data = new FormData(target);
-						this.disabled = true;
+						target.querySelectorAll('button, input').forEach(el => el.disabled = true);
 						const auth = await getAuth();
-						await confirmPasswordReset(auth, data.get('verification'), data.get('password'));
+						await applyActionCode(auth, data.get('verification'));
 						this.dispatchEvent(new Event('success'));
 					} catch(err) {
-						const errEvent = errorToEvent('error', err);
+						const errEvent = new ErrorEvent('error', {
+							error: err,
+							message: err.message,
+							filename: err.fileName,
+							colno: err.columnNumber,
+							lineno: err.lineNumber,
+						});
+
 						this.dispatchEvent(errEvent);
+						const errMessage = target.querySelector('.error');
+						errMessage.textContent = err.message;
+						setTimeout(() => errMessage.replaceChildren(), 3000);
 					} finally {
-						this.disabled = false;
+						target.querySelectorAll('button, input').forEach(el => el.disabled = false);
 					}
 				}
 			},
@@ -45,15 +54,14 @@ export class HTMLFirebaseConfirmResetFormElement extends HTMLFirebaseAuthElement
 					children: [
 						createElement('legend', {
 							children: [
-								createSlot('legend', { text: 'Confirm Password Reset' }),
+								createSlot('legend', { text: 'Verify Email Address' }),
 							],
 						}),
-						createInput('email', { type: 'hidden', id: 'confirm-reset-email', readonly: true }),
 						createElement('div', {
 							classList: ['form-group'],
 							children: [
 								createElement('label', {
-									for: 'confirm-reset-verification',
+									for: 'verify-email-verification',
 									classList: ['input-label', 'required'],
 									part: ['label'],
 									children: [
@@ -62,32 +70,33 @@ export class HTMLFirebaseConfirmResetFormElement extends HTMLFirebaseAuthElement
 									]
 								}),
 								createInput('verification', {
-									id: 'confirm-reset-verification',
+									id: 'verify-email-verification',
 									type: 'text',
 									classList: ['input'],
 									part: ['input'],
 									autocomplete: 'off',
-									placeholder: '######',
+									placeholder: '**********',
 									required: true,
 									events: {
 										change: async ({ target }) => {
 											if (target.value.length !== 0) {
 												try {
 													const auth = await getAuth();
-													const email = await verifyPasswordResetCode(auth, target.value);
+													const result = await checkActionCode(auth, target.value);
+													console.log(result);
 													target.setCustomValidity('');
 													target.readOnly = true;
 													target.closest('.form-group').hidden = true;
-													target.form.querySelector('#confirm-reset-email').value = email;
+													target.form.requestSubmit();
 												} catch(err) {
 													if (err.name === 'FirebaseError') {
 														switch(err.code) {
 															case 'auth/expired-action-code':
-																target.setCustomValidity('Expired reset code');
+																target.setCustomValidity('Expired verification code');
 																break;
 
 															case 'auth/invalid-action-code':
-																target.setCustomValidity('Invalid reset code');
+																target.setCustomValidity('Invalid verification code');
 																break;
 
 															case 'auth/user-disabled':
@@ -99,6 +108,7 @@ export class HTMLFirebaseConfirmResetFormElement extends HTMLFirebaseAuthElement
 																break;
 
 															default:
+																console.error(err);
 																target.setCustomValidity('An unknown error occurred validating the reset code');
 														}
 
@@ -125,30 +135,6 @@ export class HTMLFirebaseConfirmResetFormElement extends HTMLFirebaseAuthElement
 								}),
 							]
 						}),
-						createElement('div', {
-							classList: ['form-group'],
-							children: [
-								createElement('label', {
-									for: 'confirm-reset-password',
-									classList: ['input-label', 'required'],
-									part: ['label'],
-									children: [
-										createSlot('password-icon', { children: [createDialogPasswordIcon(iconOptions)]}),
-										createSlot('password-label', { text: 'New Password' }),
-									]
-								}),
-								createInput('password', {
-									id: 'confirm-reset-password',
-									type: 'password',
-									classList: ['input'],
-									part: ['input'],
-									autocomplete: 'new-password',
-									minlength: 8,
-									placeholder: '********',
-									required: true,
-								}),
-							]
-						}),
 					]
 				}),
 				createElement('div', {
@@ -164,8 +150,8 @@ export class HTMLFirebaseConfirmResetFormElement extends HTMLFirebaseAuthElement
 							part: ['btn'],
 							// disabled: true,
 							children: [
-								createSlot('register-icon', { children: [createCheckIcon(iconOptions)] }),
-								createSlot('register-label', { text: 'Submit' }),
+								createSlot('submit-icon', { children: [createCheckIcon(iconOptions)] }),
+								createSlot('submit-label', { text: 'Submit' }),
 							],
 						}),
 						createElement('button', {
@@ -187,12 +173,11 @@ export class HTMLFirebaseConfirmResetFormElement extends HTMLFirebaseAuthElement
 	}
 
 	connectedCallback() {
-		super.connectedCallback();
 		const params = new URLSearchParams(location.search);
 
 		if (params.has(this.param)) {
 			const { shadow } = protectedData.get(this);
-			const input = shadow.getElementById('confirm-reset-verification');
+			const input = shadow.getElementById('verify-email-verification');
 			input.value = params.get(this.param);
 			input.dispatchEvent(new Event('change'));
 		}
@@ -207,4 +192,4 @@ export class HTMLFirebaseConfirmResetFormElement extends HTMLFirebaseAuthElement
 	}
 }
 
-customElements.define('firebase-confirm-reset', HTMLFirebaseConfirmResetFormElement);
+customElements.define('firebase-verify-email', HTMLFirebaseVerifyEmailFormElement);

@@ -9,7 +9,7 @@
 			script-src 'self' https://unpkg.com/ https://www.gstatic.com/firebasejs/ 'nonce-2922730b-7e42-4420-b730-1c98df161582';
 			style-src 'self' https://unpkg.com blob:;
 			font-src 'self' https://cdn.kernvalley.us/fonts/;
-			connect-src 'self' *.kernvalley.us https://unpkg.com https://baconipsum.com/api/ https://api.github.com/ https://raw.githubusercontent.com/shgysk8zer0/ https://api.openweathermap.org/data/2.5/;
+			connect-src 'self' *.kernvalley.us https://unpkg.com https://baconipsum.com/api/ https://api.github.com/ https://raw.githubusercontent.com/shgysk8zer0/ https://api.openweathermap.org/data/2.5/ https://identitytoolkit.googleapis.com/v1/;
 			child-src  https://www.youtube-nocookie.com/embed/;
 			img-src * data: blob;
 			trusted-types default empty#html empty#script sanitizer-raw#html trust-raw#html github#gist dompurify share-to-buttons#html weather-current#html weather-forecast#html krv-events#html codepen#script-url module#script-url purify-raw#html purify#html pwa-install html-notification#script spotify-player#html spotify#script-url krv-contact#html github-user#html github-repo#html youtube#embed;
@@ -25,6 +25,7 @@
 					"@shgysk8zer0/polyfills": "../node_modules/@shgysk8zer0/polyfills/all.min.js",
 					"@shgysk8zer0/polyfills/": "../node_modules/@shgysk8zer0/polyfills/",
 					"@shgysk8zer0/jswaggersheets": "../node_modules/@shgysk8zer0/jswaggersheets/swagger.js",
+					"@shgysk8zer0/jss/": "../node_modules/@shgysk8zer0/jss/",
 					"@shgysk8zer0/components/": "../",
 					"@kernvalley/components/": "../krv/",
 					"firebase/": "https://www.gstatic.com/firebasejs/9.23.0/",
@@ -35,6 +36,8 @@
 				}
 			}
 		</script>
+		<script type="application/javascript" defer="" referrerpolicy="no-referrer" crossorigin="anonymous" integrity="sha384-mbVsY82zSLXMJro9PwjMxsGwFv+kwypUPBBdtQkkq6/T80dykbJ6669pzHfMMiYV" src="https://unpkg.com/@shgysk8zer0/polyfills@0.2.4/all.min.js" fetchpriority="auto"></script>
+		<script type="module" src="/config.js" referrerpolicy="no-referrer"></script>
 		<script type="module" src="./js/index.js" referrerpolicy="no-referrer"></script>
 		<script type="module" src="./js/components.js" referrerpolicy="no-referrer"></script>
 		<link rel="stylesheet" href="./css/index.css" referrerpolicy="no-referrer" />
@@ -48,6 +51,8 @@
 			<button is="app-list">Apps</button>
 			<button type="button" class="btn btn-default" data-user="shgysk8zer0" data-repo="kazoo" data-branch="master">Kazoo README</button>
 			<button type="button" class="btn btn-default" data-user="shgysk8zer0" data-repo="polyfills" data-branch="master">Polyfills README</button>
+			<button type="button" class="btn btn-reject sign-out" disabled="">Sign-Out</button>
+			<button type="button" class="btn btn-accept sign-in" disabled="">Sign-In</button>
 			<share-to-button target="twitter"></share-to-button>
 			<share-to-button target="linkedin"></share-to-button>
 		</nav>

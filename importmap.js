@@ -5,6 +5,7 @@ export const importmap = {
 		'@shgysk8zer0/polyfills/': 'https://unpkg.com/@shgysk8zer0/polyfills@0.1.2/',
 		'@shgysk8zer0/konami': 'https://unpkg.com/@shgysk8zer0/konami@1.0.10/konami.js',
 		'@shgysk8zer0/jswaggersheets': 'https://unpkg.com/@shgysk8zer0/jswaggersheets@1.0.3/swagger.js',
+		'@shgysk8zer0/jss/': 'https://unpkg.com/@shgysk8zer0/jss/',
 		'@shgysk8zer0/components/': '../',
 		'@kernvalley/components/': '../krv/',
 		'firebase/': 'https://www.gstatic.com/firebasejs/9.23.0/',

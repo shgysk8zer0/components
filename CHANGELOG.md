@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.1.3] - 2023-09-07
+
+### Added
+- `<firebase-change-email>`
+- `<firebase-verify-email>`
+- `<firebase-change-password>`
+- `<firebase-email-link>`
+
+### Changed
+- Misc. updates for better consistency and functionality
 ## [v0.1.2] - 2023-08-22
 
 ### Added

@@ -1,12 +1,12 @@
 import { createElement, createInput, createSlot } from '@shgysk8zer0/kazoo/elements.js';
-import { createMailIcon, createDialogPasswordIcon, createSignUpIcon, createXIcon, createPersonIcon } from '@shgysk8zer0/kazoo/icons.js';
+import { createMailIcon, createDialogPasswordIcon, createSignInIcon, createXIcon } from '@shgysk8zer0/kazoo/icons.js';
 import { errorToEvent } from '@shgysk8zer0/kazoo/utility.js';
-import { HTMLFirebaseAuthElement, getAuth, disableOnSignOut, iconOptions } from './auth.js';
-import { updateProfile } from 'firebase/firebase-auth.js';
+import { HTMLFirebaseAuthElement, getAuth, isUser, disableOnSignOut, iconOptions } from './auth.js';
+import { reauthenticateWithCredential, EmailAuthProvider } from 'firebase/firebase-auth.js';
 
 const protectedData = new WeakMap();
 
-export class HTMLFirebaseUpdateProfileFormElement extends HTMLFirebaseAuthElement {
+export class HTMLFirebaseReAuthFormElement extends HTMLFirebaseAuthElement {
 	constructor() {
 		super();
 		const shadow = this.attachShadow({ mode: 'closed' });
@@ -15,8 +15,7 @@ export class HTMLFirebaseUpdateProfileFormElement extends HTMLFirebaseAuthElemen
 		shadow.append(createElement('form', {
 			classList: ['system-ui'],
 			events: {
-				reset: event => {
-					event.stopPropagation();
+				reset: () => {
 					this.dispatchEvent(new Event('abort'));
 				},
 				submit: async event => {
@@ -26,23 +25,15 @@ export class HTMLFirebaseUpdateProfileFormElement extends HTMLFirebaseAuthElemen
 
 					try {
 						const data = new FormData(target);
-						target.querySelectorAll('button, input').forEach(el => el.disabled = true);
-						const { currentUser } = await getAuth();
-
-						if (Object.is(currentUser, null)) {
-							throw new DOMException('You must be signed in.');
-						} else {
-							await updateProfile(currentUser, {
-								displayName: data.get('name'),
-							});
-
-							this.dispatchEvent(new CustomEvent('success', { detail: currentUser }));
-						}
+						this.disabled = true;
+						const auth = await getAuth();
+						await HTMLFirebaseReAuthFormElement.reauthenticate(auth, data.get('password'));
+						this.dispatchEvent(new Event('success'));
 					} catch(err) {
-						const errEvent = errorToEvent('error', err);
+						const errEvent = errorToEvent(err);
 						this.dispatchEvent(errEvent);
 					} finally {
-						target.querySelectorAll('button, input').forEach(el => el.disabled = false);
+						this.disabled = false;
 					}
 				}
 			},
@@ -52,52 +43,29 @@ export class HTMLFirebaseUpdateProfileFormElement extends HTMLFirebaseAuthElemen
 					children: [
 						createElement('legend', {
 							children: [
-								createSlot('legend', { text: 'Sign-Up' }),
+								createSlot('legend', { text: 'Sign-In' }),
 							],
 						}),
 						createElement('div', {
 							classList: ['form-group'],
 							children: [
 								createElement('label', {
-									for: 'register-name',
+									for: 'login-email',
 									classList: ['input-label', 'required'],
 									part: ['label'],
 									children: [
-										createSlot('name-icon', { children: [createPersonIcon(iconOptions)]}),
-										createSlot('name-label', { text: 'Name' }),
-									]
-								}),
-								createInput('name', {
-									id: 'register-name',
-									type: 'text',
-									classList: ['input'],
-									part: ['input'],
-									autocomplete: 'name',
-									placeholder: 'Firstname Lastname',
-									required: true,
-								}),
-							]
-						}),
-						createElement('div', {
-							classList: ['form-group'],
-							children: [
-								createElement('label', {
-									for: 'register-email',
-									classList: ['input-label', 'required'],
-									part: ['label'],
-									children: [
-										createSlot('email-icon', { children: [createMailIcon(iconOptions)] }),
+										createSlot('email-icon', { children: [createMailIcon(iconOptions)]}),
 										createSlot('email-label', { text: 'Email' }),
 									]
 								}),
 								createInput('email', {
-									id: 'register-email',
+									id: 're-auth-email',
 									type: 'email',
 									classList: ['input'],
 									part: ['input'],
 									autocomplete: 'email',
 									placeholder: 'user@example.com',
-									required: true,
+									readOnly: true,
 								}),
 							]
 						}),
@@ -105,7 +73,7 @@ export class HTMLFirebaseUpdateProfileFormElement extends HTMLFirebaseAuthElemen
 							classList: ['form-group'],
 							children: [
 								createElement('label', {
-									for: 'register-password',
+									for: 're-auth-password',
 									classList: ['input-label', 'required'],
 									part: ['label'],
 									children: [
@@ -114,13 +82,14 @@ export class HTMLFirebaseUpdateProfileFormElement extends HTMLFirebaseAuthElemen
 									]
 								}),
 								createInput('password', {
-									id: 'register-password',
+									id: 're-auth-password',
 									type: 'password',
 									classList: ['input'],
 									part: ['input'],
-									autocomplete: 'new-password',
+									autocomplete: 'current-password',
 									placeholder: '********',
 									minlength: 8,
+									required: true,
 								}),
 							]
 						}),
@@ -137,9 +106,10 @@ export class HTMLFirebaseUpdateProfileFormElement extends HTMLFirebaseAuthElemen
 							type: 'submit',
 							classList: ['btn', 'btn-accept'],
 							part: ['btn'],
+							// disabled: true,
 							children: [
-								createSlot('register-icon', { children: [createSignUpIcon(iconOptions)] }),
-								createSlot('register-label', { text: 'Sign-Up' }),
+								createSlot('submit-icon', { children: [createSignInIcon(iconOptions)] }),
+								createSlot('submit-label', { text: 'Sign-In' }),
 							],
 						}),
 						createElement('button', {
@@ -160,6 +130,27 @@ export class HTMLFirebaseUpdateProfileFormElement extends HTMLFirebaseAuthElemen
 		protectedData.set(this, { shadow, internals });
 		disableOnSignOut(this);
 	}
+
+	async connectedCallback() {
+		const { currentUser } = await getAuth();
+
+		if (isUser(currentUser)) {
+			const { shadow } = protectedData.get(this);
+			const input = shadow.getElementById('re-auth-email');
+			input.value = currentUser.email;
+		}
+	}
+
+	static async reauthenticate(auth, password) {
+		if (! isUser(auth.currentUser)) {
+			throw new DOMException('User is not signed-in.');
+		} else if (typeof password !== 'string') {
+			throw new TypeError('Missing or invalid password.');
+		} else {
+			const cred = EmailAuthProvider.credential(auth.currentUser.email, password);
+			await reauthenticateWithCredential(auth.currentUser, cred);
+		}
+	}
 }
 
-customElements.define('firebase-update-profile', HTMLFirebaseUpdateProfileFormElement);
+customElements.define('firebase-re-auth', HTMLFirebaseReAuthFormElement);

@@ -1,6 +1,7 @@
 import { createElement, createInput, createSlot } from '@shgysk8zer0/kazoo/elements.js';
 import { createMailIcon, createDialogPasswordIcon, createSignInIcon, createXIcon } from '@shgysk8zer0/kazoo/icons.js';
-import { HTMLFirebaseAuthElement, getAuth, iconOptions, styles } from './auth.js';
+import { errorToEvent } from '@shgysk8zer0/kazoo/utility.js';
+import { HTMLFirebaseAuthElement, getAuth, disableOnSignIn, iconOptions } from './auth.js';
 import { signInWithEmailAndPassword } from 'firebase/firebase-auth.js';
 
 const protectedData = new WeakMap();
@@ -11,11 +12,12 @@ export class HTMLFirebaseSignInFormElement extends HTMLFirebaseAuthElement {
 		const shadow = this.attachShadow({ mode: 'closed' });
 		const internals = this.attachInternals();
 
-		styles.then(sheets => shadow.adoptedStyleSheets = sheets);
-
 		shadow.append(createElement('form', {
 			classList: ['system-ui'],
 			events: {
+				reset: () => {
+					this.dispatchEvent(new Event('abort'));
+				},
 				submit: async event => {
 					event.preventDefault();
 					event.stopPropagation();
@@ -23,7 +25,7 @@ export class HTMLFirebaseSignInFormElement extends HTMLFirebaseAuthElement {
 
 					try {
 						const data = new FormData(target);
-						target.querySelectorAll('button, input').forEach(el => el.disabled = true);
+						this.disabled = true;
 						const auth = await getAuth();
 						const { user } = await signInWithEmailAndPassword(auth, data.get('email'), data.get('password'));
 
@@ -33,20 +35,10 @@ export class HTMLFirebaseSignInFormElement extends HTMLFirebaseAuthElement {
 							this.dispatchEvent(new CustomEvent('success', { detail: { user }}));
 						}
 					} catch(err) {
-						const errEvent = new ErrorEvent('error', {
-							error: err,
-							message: err.message,
-							filename: err.fileName,
-							colno: err.columnNumber,
-							lineno: err.lineNumber,
-						});
-
+						const errEvent = errorToEvent(err);
 						this.dispatchEvent(errEvent);
-						const errMessage = target.querySelector('.error');
-						errMessage.textContent = err.message;
-						setTimeout(() => errMessage.replaceChildren(), 3000);
 					} finally {
-						target.querySelectorAll('button, input').forEach(el => el.disabled = false);
+						this.disabled = false;
 					}
 				}
 			},
@@ -140,9 +132,11 @@ export class HTMLFirebaseSignInFormElement extends HTMLFirebaseAuthElement {
 		}));
 
 		protectedData.set(this, { shadow, internals });
+		disableOnSignIn(this);
 	}
 
 	async connectedCallback() {
+		super.connectedCallback();
 		if ('credentials' in navigator && 'PasswordCredential' in globalThis) {
 			await navigator.credentials.preventSilentAccess();
 			const { id: email, password, name, iconURL } = await navigator.credentials.get({ password: true, required: true, silent: false });

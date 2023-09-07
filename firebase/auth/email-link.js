@@ -1,37 +1,22 @@
+import { HTMLFirebaseAuthElement, getAuth, disableOnSignIn, iconOptions, styles } from '@shgysk8zer0/components/firebase/auth/auth.js';
 import { createElement, createInput, createSlot } from '@shgysk8zer0/kazoo/elements.js';
 import { createMailIcon, createCheckIcon, createXIcon } from '@shgysk8zer0/kazoo/icons.js';
-import { getString, setString } from '@shgysk8zer0/kazoo/attrs.js';
-import { errorToEvent } from '@shgysk8zer0/kazoo/utility.js';
-import { HTMLFirebaseAuthElement, getAuth, disableOnSignOut, iconOptions } from './auth.js';
-import { sendPasswordResetEmail } from 'firebase/firebase-auth.js';
+import { sendSignInLinkToEmail, signInWithEmailLink, isSignInWithEmailLink } from 'firebase/firebase-auth.js';
 
 const protectedData = new WeakMap();
 
-function generateResetURL(path = location.pathname) {
-	const url = new URL(path, location.origin);
-
-	if (url.origin !== location.origin) {
-		throw new DOMException('Invalid cross-origin URL for password reset.');
-	} else if (url.search.length !== 0) {
-		throw new DOMException('Path must not contain any query string.');
-	} else {
-		return url.href;
-	}
-}
-
-export class HTMLFirebasePasswordResetFormElement extends HTMLFirebaseAuthElement {
+export class HTMLFirebaseEmailLinkFormElement extends HTMLFirebaseAuthElement {
 	constructor() {
 		super();
 		const shadow = this.attachShadow({ mode: 'closed' });
 		const internals = this.attachInternals();
 
+		styles.then(sheets => shadow.adoptedStyleSheets = sheets);
+
 		shadow.append(createElement('form', {
 			classList: ['system-ui'],
 			events: {
-				reset: event => {
-					event.stopPropagation();
-					this.dispatchEvent(new Event('abort'));
-				},
+				reset: () => this.dispatchEvent(new Event('abort')),
 				submit: async event => {
 					event.preventDefault();
 					event.stopPropagation();
@@ -39,21 +24,29 @@ export class HTMLFirebasePasswordResetFormElement extends HTMLFirebaseAuthElemen
 
 					try {
 						const data = new FormData(target);
-						this.disabled = true;
+						target.querySelectorAll('button, input').forEach(el => el.disabled = true);
 						const auth = await getAuth();
-						// @TODO Get additional info from webapp manifest
-						const actionCodeSettings = {
-							url: generateResetURL(this.path),
-							handleCodeInApp: false,
-						};
-
-						await sendPasswordResetEmail(auth, data.get('email'), actionCodeSettings);
+						await sendSignInLinkToEmail(auth, data.get('email'), {
+							url: new URL('/', location.href).href,
+							handleCodeInApp: true,
+						});
 						this.dispatchEvent(new Event('success'));
 					} catch(err) {
-						const errEvent = errorToEvent('error', err);
+						console.error(err);
+						const errEvent = new ErrorEvent('error', {
+							error: err,
+							message: err.message,
+							filename: err.fileName,
+							colno: err.columnNumber,
+							lineno: err.lineNumber,
+						});
+
 						this.dispatchEvent(errEvent);
+						const errMessage = target.querySelector('.error');
+						errMessage.textContent = err.message;
+						setTimeout(() => errMessage.replaceChildren(), 3000);
 					} finally {
-						this.disabled = false;
+						target.querySelectorAll('button, input').forEach(el => el.disabled = false);
 					}
 				}
 			},
@@ -63,14 +56,14 @@ export class HTMLFirebasePasswordResetFormElement extends HTMLFirebaseAuthElemen
 					children: [
 						createElement('legend', {
 							children: [
-								createSlot('legend', { text: 'Reset Your Password' }),
+								createSlot('legend', { text: 'Sign-in via Email Link' }),
 							],
 						}),
 						createElement('div', {
 							classList: ['form-group'],
 							children: [
 								createElement('label', {
-									for: 'forgot-password-email',
+									for: 'email-link-email',
 									classList: ['input-label', 'required'],
 									part: ['label'],
 									children: [
@@ -79,7 +72,7 @@ export class HTMLFirebasePasswordResetFormElement extends HTMLFirebaseAuthElemen
 									]
 								}),
 								createInput('email', {
-									id: 'forgot-password-email',
+									id: 'email-link-email',
 									type: 'email',
 									classList: ['input'],
 									part: ['input'],
@@ -104,8 +97,8 @@ export class HTMLFirebasePasswordResetFormElement extends HTMLFirebaseAuthElemen
 							part: ['btn'],
 							// disabled: true,
 							children: [
-								createSlot('register-icon', { children: [createCheckIcon(iconOptions)] }),
-								createSlot('register-label', { text: 'Submit' }),
+								createSlot('submit-icon', { children: [createCheckIcon(iconOptions)] }),
+								createSlot('submit-label', { text: 'Submit' }),
 							],
 						}),
 						createElement('button', {
@@ -124,16 +117,18 @@ export class HTMLFirebasePasswordResetFormElement extends HTMLFirebaseAuthElemen
 		}));
 
 		protectedData.set(this, { shadow, internals });
-		disableOnSignOut(this);
+		disableOnSignIn(this);
 	}
 
-	get path() {
-		return getString(this, 'path', { fallback: location.pathname });
+	static async verify() {
+		const auth = await getAuth();
+		return isSignInWithEmailLink(auth, location.href);
 	}
 
-	set path(val) {
-		setString(this, 'path', val);
+	static async signIn(email) {
+		const auth = await getAuth();
+		await signInWithEmailLink(auth, email, location.href);
 	}
 }
 
-customElements.define('firebase-password-reset', HTMLFirebasePasswordResetFormElement);
+customElements.define('firebase-email-link', HTMLFirebaseEmailLinkFormElement);
