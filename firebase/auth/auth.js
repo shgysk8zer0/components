@@ -6,7 +6,10 @@ import {
 import { getString, setString, getBool, setBool } from '@shgysk8zer0/kazoo/attrs.js';
 import { createElement, createInput, createSlot } from '@shgysk8zer0/kazoo/elements.js';
 import { createMailIcon, createDialogPasswordIcon } from '@shgysk8zer0/kazoo/icons.js';
-import { formStyles, btnStyles, hostStyles, fonts, flexStyles, cursorStyles, commonStyles } from '../styles.js';
+import {
+	formStyles, btnStyles, hostStyles, fonts, flexStyles, cursorStyles,
+	commonStyles, displayRules,
+} from '@shgysk8zer0/jss/common.js';
 
 const initializedDeferred = Promise.withResolvers();
 const authReadyDeferred = Promise.withResolvers();
@@ -17,8 +20,18 @@ const symbols = {
 	shadow: Symbol('firebase-shadow'),
 };
 
+const capturedEvents = [
+	'keydown',  'keyup', 'keypress', 'paste', 'cut', 'copy', 'input', 'beforeinput',
+	'change', 'compositionstart', 'compositionupdate', 'compositionend', 'invalid',
+];
+
+const captureEvent = event => event.stopPropagation();
+
 export const iconOptions = { height: 18, width: 18, fill: 'currentColor', part: ['icon'], classList: ['icon'] };
-export const styles = Promise.all([formStyles, btnStyles, hostStyles, fonts, flexStyles, cursorStyles, commonStyles]);
+export const styles = Promise.all([
+	formStyles, btnStyles, hostStyles, fonts, flexStyles, cursorStyles,
+	commonStyles, displayRules,
+]);
 
 export class HTMLFirebaseAuthElement extends HTMLElement {
 	#shadow;
@@ -80,6 +93,8 @@ export class HTMLFirebaseAuthElement extends HTMLElement {
 
 	attachShadow({ mode = 'closed' } = {}) {
 		const shadow = super.attachShadow({ mode });
+
+		capturedEvents.forEach(ev => shadow.addEventListener(ev, captureEvent, { capture: true }));
 		this[symbols.shadow] = shadow;
 		styles.then(sheets => shadow.adoptedStyleSheets = sheets);
 		return shadow;
@@ -330,14 +345,68 @@ export function getSignOutSignal() {
 export function createSignOutButton() {
 	const btn = document.createElement('button');
 	btn.type = 'button';
-	btn.disabled = true;
-
-	getAuth().then(auth => {
-		btn.addEventListener('click', () => logOut(auth));
-		onAuthStateChanged(auth, user => btn.disabled = ! isUser(user));
-	});
+	registerSignOutButton(btn);
 
 	return btn;
+}
+
+export function disableOnSignOut(el, { base = document, signal } = {}) {
+	if (typeof el === 'string') {
+		disableOnSignOut(base.querySelector(el));
+	} else if (! (el instanceof HTMLElement)) {
+		throw new TypeError('Cannot disable a non-Element.');
+	} else if (! ('disabled' in el)) {
+		throw new TypeError('Element cannot be disabled.');
+	} else {
+		el.disabled = true;
+
+		if (! (signal instanceof AbortSignal)) {
+			getAuth().then(auth => {
+				onAuthStateChanged(auth, user => el.disabled = ! isUser(user));
+			});
+		} else if (! signal.aborted) {
+			getAuth().then(auth => {
+				const unsubscribe = onAuthStateChanged(auth, user => el.disabled = ! isUser(user));
+				signal.addEventListener('abort', () => unsubscribe(), { once: true });
+			});
+		}
+	}
+}
+
+export function disableOnSignIn(el, { base = document, signal } = {}) {
+	if (typeof el === 'string') {
+		disableOnSignIn(base.querySelector(el));
+	} else if (! (el instanceof HTMLElement)) {
+		throw new TypeError('Cannot disable a non-Element.');
+	} else if (! ('disabled' in el)) {
+		throw new TypeError('Element cannot be disabled.');
+	} else {
+		el.disabled = true;
+
+		if (! (signal instanceof AbortSignal)) {
+			getAuth().then(auth => {
+				onAuthStateChanged(auth, user => el.disabled = isUser(user));
+			});
+		} else if (! signal.aborted) {
+			getAuth().then(auth => {
+				const unsubscribe = onAuthStateChanged(auth, user => el.disabled = isUser(user));
+				signal.addEventListener('abort', () => unsubscribe(), { once: true });
+			});
+		}
+	}
+}
+
+export function registerSignOutButton(btn, { base = document } = {}) {
+	if (typeof btn === 'string') {
+		return registerSignOutButton(base.querySelector(btn));
+	} else if (! (btn instanceof HTMLButtonElement)) {
+		throw  new TypeError('Cannot register a non-<button> as a sign-out button.');
+	} else {
+		disableOnSignOut(btn);
+		getAuth().then(auth => {
+			btn.addEventListener('click', () => logOut(auth));
+		});
+	}
 }
 
 export function createReAuthentication() {

@@ -1,4 +1,4 @@
-import { HTMLFirebaseAuthElement, getAuth, iconOptions, styles } from '@shgysk8zer0/components/firebase/auth/auth.js';
+import { HTMLFirebaseAuthElement, getAuth, disableOnSignOut, iconOptions, styles } from '@shgysk8zer0/components/firebase/auth/auth.js';
 import { createElement, createInput, createSlot } from '@shgysk8zer0/kazoo/elements.js';
 import { createMailIcon, createDialogPasswordIcon, createCheckIcon, createXIcon } from '@shgysk8zer0/kazoo/icons.js';
 import { updateEmail, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/firebase-auth.js';
@@ -191,6 +191,7 @@ export class HTMLFirebaseChangeEmailFormElement extends HTMLFirebaseAuthElement 
 		}));
 
 		protectedData.set(this, { shadow, internals });
+		disableOnSignOut(this);
 	}
 
 	async connectedCallback() {

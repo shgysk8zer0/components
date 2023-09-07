@@ -6,6 +6,7 @@ import { applyActionCode, checkActionCode } from 'firebase/firebase-auth.js';
 
 const protectedData = new WeakMap();
 
+// @TODO Determine if this should be disabled on sign-in/sign-out
 export class HTMLFirebaseVerifyEmailFormElement extends HTMLFirebaseAuthElement {
 	constructor() {
 		super();

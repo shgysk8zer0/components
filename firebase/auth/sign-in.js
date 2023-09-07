@@ -1,7 +1,7 @@
 import { createElement, createInput, createSlot } from '@shgysk8zer0/kazoo/elements.js';
 import { createMailIcon, createDialogPasswordIcon, createSignInIcon, createXIcon } from '@shgysk8zer0/kazoo/icons.js';
 import { errorToEvent } from '@shgysk8zer0/kazoo/utility.js';
-import { HTMLFirebaseAuthElement, getAuth, iconOptions } from './auth.js';
+import { HTMLFirebaseAuthElement, getAuth, disableOnSignIn, iconOptions } from './auth.js';
 import { signInWithEmailAndPassword } from 'firebase/firebase-auth.js';
 
 const protectedData = new WeakMap();
@@ -15,8 +15,7 @@ export class HTMLFirebaseSignInFormElement extends HTMLFirebaseAuthElement {
 		shadow.append(createElement('form', {
 			classList: ['system-ui'],
 			events: {
-				reset: event => {
-					event.stopPropagation();
+				reset: () => {
 					this.dispatchEvent(new Event('abort'));
 				},
 				submit: async event => {
@@ -36,7 +35,7 @@ export class HTMLFirebaseSignInFormElement extends HTMLFirebaseAuthElement {
 							this.dispatchEvent(new CustomEvent('success', { detail: { user }}));
 						}
 					} catch(err) {
-						const errEvent = errorToEvent('error', err);
+						const errEvent = errorToEvent(err);
 						this.dispatchEvent(errEvent);
 					} finally {
 						this.disabled = false;
@@ -133,6 +132,7 @@ export class HTMLFirebaseSignInFormElement extends HTMLFirebaseAuthElement {
 		}));
 
 		protectedData.set(this, { shadow, internals });
+		disableOnSignIn(this);
 	}
 
 	async connectedCallback() {

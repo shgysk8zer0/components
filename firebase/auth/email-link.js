@@ -1,4 +1,4 @@
-import { HTMLFirebaseAuthElement, getAuth, iconOptions, styles } from '@shgysk8zer0/components/firebase/auth/auth.js';
+import { HTMLFirebaseAuthElement, getAuth, disableOnSignIn, iconOptions, styles } from '@shgysk8zer0/components/firebase/auth/auth.js';
 import { createElement, createInput, createSlot } from '@shgysk8zer0/kazoo/elements.js';
 import { createMailIcon, createCheckIcon, createXIcon } from '@shgysk8zer0/kazoo/icons.js';
 import { sendSignInLinkToEmail, signInWithEmailLink, isSignInWithEmailLink } from 'firebase/firebase-auth.js';
@@ -117,6 +117,7 @@ export class HTMLFirebaseEmailLinkFormElement extends HTMLFirebaseAuthElement {
 		}));
 
 		protectedData.set(this, { shadow, internals });
+		disableOnSignIn(this);
 	}
 
 	static async verify() {

@@ -1,5 +1,4 @@
 import '@shgysk8zer0/kazoo/harden.js';
-import '@shgysk8zer0/polyfills/all.js';
 import '@shgysk8zer0/kazoo/harden.js';
 import { createElement } from '@shgysk8zer0/kazoo/elements.js';
 import { on } from '@shgysk8zer0/kazoo/dom.js';

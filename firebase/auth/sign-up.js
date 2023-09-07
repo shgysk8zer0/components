@@ -2,7 +2,7 @@ import { createElement, createInput, createSlot } from '@shgysk8zer0/kazoo/eleme
 import { createMailIcon, createDialogPasswordIcon, createSignUpIcon, createXIcon, createPersonIcon } from '@shgysk8zer0/kazoo/icons.js';
 import { errorToEvent } from '@shgysk8zer0/kazoo/utility.js';
 import { createGravatarURL } from '@shgysk8zer0/kazoo/gravatar.js';
-import { HTMLFirebaseAuthElement, getAuth, iconOptions } from './auth.js';
+import { HTMLFirebaseAuthElement, getAuth, disableOnSignIn, iconOptions } from './auth.js';
 import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from 'firebase/firebase-auth.js';
 
 const protectedData = new WeakMap();
@@ -165,6 +165,7 @@ export class HTMLFirebaseSignUpFormElement extends HTMLFirebaseAuthElement {
 		}));
 
 		protectedData.set(this, { shadow, internals });
+		disableOnSignIn(this);
 	}
 }
 
