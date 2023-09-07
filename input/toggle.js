@@ -192,18 +192,11 @@ customElements.define('input-toggle', class HTMLInputToggleElement extends HTMLE
 		}
 	}
 	
-	formAssociatedCallbackx(form) {
+	formAssociatedCallback() {
 		if (this[symbols.controller] instanceof AbortController) {
 			this[symbols.controller].abort();
 		}
 		this[symbols.controller] = new AbortController();
-		
-		if (form instanceof HTMLFormElement) {
-			console.log(this[symbols.internals].labels);
-			this[symbols.internals].labels.forEach(label => {
-				label.addEventListener('click', labelHandler, { signal: this[symbols.controller].signal });
-			});
-		}
 	}
 	
 	formDisabledCallback(disabled) {
