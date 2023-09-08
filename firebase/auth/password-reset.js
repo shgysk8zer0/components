@@ -2,7 +2,7 @@ import { createElement, createInput, createSlot } from '@shgysk8zer0/kazoo/eleme
 import { createMailIcon, createCheckIcon, createXIcon } from '@shgysk8zer0/kazoo/icons.js';
 import { getString, setString } from '@shgysk8zer0/kazoo/attrs.js';
 import { errorToEvent } from '@shgysk8zer0/kazoo/utility.js';
-import { HTMLFirebaseAuthElement, getAuth, disableOnSignOut, iconOptions } from './auth.js';
+import { HTMLFirebaseAuthElement, getAuth, disableOnSignIn, iconOptions } from './auth.js';
 import { sendPasswordResetEmail } from 'firebase/firebase-auth.js';
 
 const protectedData = new WeakMap();
@@ -124,7 +124,7 @@ export class HTMLFirebasePasswordResetFormElement extends HTMLFirebaseAuthElemen
 		}));
 
 		protectedData.set(this, { shadow, internals });
-		disableOnSignOut(this);
+		disableOnSignIn(this);
 	}
 
 	get path() {

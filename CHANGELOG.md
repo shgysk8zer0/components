@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.1.4]  - 2023-009-08
+
+### Fixed
+- Invert the sign-in requirements of `<firebase-password-reset>` [#49](https://github.com/shgysk8zer0/components/issues/49)
+
 ## [v0.1.3] - 2023-09-07
 
 ### Added
