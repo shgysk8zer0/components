@@ -6,7 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [v0.1.4]  - 2023-009-08
+## [v0.1.5] -  2023-10-31
+
+### Added
+- `<iframe>`-related modules now support `credentialless` where appropriate
+- Use own importmap config file
+
+### Changed
+- Update Rollup config files
+
+### Removed
+- Remove unused Rollup config files
+
+## [v0.1.4]  - 2023-09-08
 
 ### Fixed
 - Invert the sign-in requirements of `<firebase-password-reset>` [#49](https://github.com/shgysk8zer0/components/issues/49)

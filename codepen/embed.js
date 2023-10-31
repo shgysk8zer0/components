@@ -135,6 +135,7 @@ customElements.define('codepen-embed', class HTMLCodePenEmbedElement extends HTM
 	
 	static getPen({ user, pen, tab = 'result', editable = false, theme = 'default', loading = 'lazy', clickToLoad = false, height = 300, credentialless = true }) {
 		const el = new HTMLCodePenEmbedElement();
+		el.credentialless = credentialless;
 		el.loading = loading;
 		el.user = user;
 		el.pen = pen;
