@@ -1,8 +1,8 @@
 export const importmap = {
 	'imports': {
-		'@shgysk8zer0/kazoo/': 'https://unpkg.com/@shgysk8zer0/kazoo@0.1.1/',
-		'@shgysk8zer0/polyfills': 'https://unpkg.com/@shgysk8zer0/polyfills@0.1.2/all.min.js',
-		'@shgysk8zer0/polyfills/': 'https://unpkg.com/@shgysk8zer0/polyfills@0.1.2/',
+		'@shgysk8zer0/kazoo/': 'https://unpkg.com/@shgysk8zer0/kazoo@0.2.5/',
+		'@shgysk8zer0/polyfills': 'https://unpkg.com/@shgysk8zer0/polyfills@0.2.6/all.min.js',
+		'@shgysk8zer0/polyfills/': 'https://unpkg.com/@shgysk8zer0/polyfills@0.2.6/',
 		'@shgysk8zer0/konami': 'https://unpkg.com/@shgysk8zer0/konami@1.0.10/konami.js',
 		'@shgysk8zer0/jswaggersheets': 'https://unpkg.com/@shgysk8zer0/jswaggersheets@1.0.3/swagger.js',
 		'@shgysk8zer0/jss/': 'https://unpkg.com/@shgysk8zer0/jss/',

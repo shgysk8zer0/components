@@ -70,6 +70,14 @@ registerCustomElement('spotify-player', class HTMLSpotifyPlayerElement extends H
 		});
 	}
 
+	get credentialless() {
+		return this.hasAttribute('credentialless');
+	}
+
+	set credentialless(val) {
+		this.toggleAttribute('credentialless', val);
+	}
+
 	get large() {
 		return getBool(this, 'large');
 	}
@@ -149,7 +157,7 @@ registerCustomElement('spotify-player', class HTMLSpotifyPlayerElement extends H
 			case 'link':
 				this.ready.then(async () => {
 					if (typeof newValue === 'string') {
-						const { uri, loading, large } = this;
+						const { uri, loading, large, credentialless } = this;
 						const { type = null, id = null } = parseURI(uri);
 						const { internals } = protectedData.get(this);
 						internals.states.add('--loading');
@@ -161,6 +169,7 @@ registerCustomElement('spotify-player', class HTMLSpotifyPlayerElement extends H
 						const iframe = HTMLSpotifyPlayerElement.createSpotifyEmbed(type, id, {
 							slot: 'player',
 							large,
+							credentialless,
 							part: ['embed'],
 						});
 
@@ -186,13 +195,13 @@ registerCustomElement('spotify-player', class HTMLSpotifyPlayerElement extends H
 
 	}
 
-	static createSpotifyEmbed(type, id, { title = 'Spotify Player', large = false, slot, part } = {}) {
+	static createSpotifyEmbed(type, id, { title = 'Spotify Player', large = false, credentialless = false, slot, part } = {}) {
 		switch(type) {
-			case 'playlist': return createSpotifyPlaylist(id, { title, large, slot, part });
-			case 'artist': return createSpotifyArtist(id, { title, large, slot, part });
-			case 'album': return createSpotifyAlbum(id, { title, large, slot, part });
-			case 'track': return createSpotifyTrack(id, { title, large, slot, part });
-			case 'show': return createSpotifyShow(id, { title, large, slot, part });
+			case 'playlist': return createSpotifyPlaylist(id, { title, large, slot, part, credentialless });
+			case 'artist': return createSpotifyArtist(id, { title, large, slot, part, credentialless });
+			case 'album': return createSpotifyAlbum(id, { title, large, slot, part, credentialless });
+			case 'track': return createSpotifyTrack(id, { title, large, slot, part, credentialless });
+			case 'show': return createSpotifyShow(id, { title, large, slot, part, credentialless });
 			default: throw new TypeError(`Invalid Spotify embed type: ${type}`);
 		}
 	}

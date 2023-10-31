@@ -3,6 +3,7 @@ logs
 *.log
 *.map
 *.min.*
+*.bak
 config.js
 npm-debug.log*
 yarn-debug.log*

@@ -8,7 +8,7 @@ const policy = createPolicy('codepen#script-url', {
 });
 
 function render(el) {
-	const { shadowRoot, user, pen, theme, loading, tab, height, editable, clickToLoad } = el;
+	const { shadowRoot, user, pen, theme, loading, tab, height, editable, clickToLoad, credentialless } = el;
 	const src = new URL(`https://codepen.io/${user}/embed${clickToLoad ? '/preview/' : '/'}${pen}`);
 
 	src.searchParams.set('default-tab', tab);
@@ -19,7 +19,7 @@ function render(el) {
 	}
 
 	const iframe = createIframe(policy.createScriptURL(src.href), {
-		loading, height,
+		loading, height, credentialless,
 		sandbox: ['allow-scripts', 'allow-popups'],
 		part: ['embed'],
 	});
@@ -65,6 +65,14 @@ customElements.define('codepen-embed', class HTMLCodePenEmbedElement extends HTM
 		setBool(this, 'clicktoload', val);
 	}
 	
+	get credentialless() {
+		return this.hasAttribute('credentialless');
+	}
+
+	set credentialless(val) {
+		this.toggleAttribute('credentialless', val);
+	}
+
 	get editable() {
 		return getBool(this, 'editable');
 	}
@@ -125,8 +133,9 @@ customElements.define('codepen-embed', class HTMLCodePenEmbedElement extends HTM
 		return ['user', 'pen', 'tab', 'editable', 'height', 'theme', 'loading'];
 	}
 	
-	static getPen({ user, pen, tab = 'result', editable = false, theme = 'default', loading = 'lazy', clickToLoad = false, height = 300 }) {
+	static getPen({ user, pen, tab = 'result', editable = false, theme = 'default', loading = 'lazy', clickToLoad = false, height = 300, credentialless = true }) {
 		const el = new HTMLCodePenEmbedElement();
+		el.credentialless = credentialless;
 		el.loading = loading;
 		el.user = user;
 		el.pen = pen;

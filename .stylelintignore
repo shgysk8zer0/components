@@ -8,6 +8,7 @@
 /css/animate.css/
 *.html
 *.js
+*.bak
 *.min*
 *.map
 *.json

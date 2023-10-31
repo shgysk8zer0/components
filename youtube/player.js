@@ -7,7 +7,7 @@ import { getString, setString, getInt, setInt, getBool, setBool } from '@shgysk8
 const protectedData = new WeakMap();
 
 registerCustomElement('youtube-player', class HTMLYouTubePlayerElement extends HTMLElement {
-	constructor(video, { height, width, cookies, loading, start, controls } = {}) {
+	constructor(video, { height, width, credentialless, loading, start, controls } = {}) {
 		super();
 
 		requestAnimationFrame(() => {
@@ -23,8 +23,8 @@ registerCustomElement('youtube-player', class HTMLYouTubePlayerElement extends H
 				this.width = width;
 			}
 
-			if (typeof coookies === 'boolean') {
-				this.cookies = cookies;
+			if (typeof credentialless === 'boolean') {
+				this.credentialless = credentialless;
 			}
 
 			if (typeof loading === 'string') {
@@ -70,7 +70,7 @@ registerCustomElement('youtube-player', class HTMLYouTubePlayerElement extends H
 				break;
 			}
 
-			case 'cookies':
+			case 'credentialless':
 			case 'video':
 				if (! Number.isNaN(timeout)) {
 					clearTimeout(timeout);
@@ -92,7 +92,7 @@ registerCustomElement('youtube-player', class HTMLYouTubePlayerElement extends H
 	}
 
 	async render() {
-		const { cookies, loading, height, width, video, controls, start } = this;
+		const { credentialless, loading, height, width, video, controls, start } = this;
 		const { shadow } = protectedData.get(this);
 
 		if (typeof video === 'string') {
@@ -100,7 +100,7 @@ registerCustomElement('youtube-player', class HTMLYouTubePlayerElement extends H
 				await whenIntersecting(this);
 			}
 
-			const iframe = createYouTubeEmbed(video, { width, height, cookies, start, controls });
+			const iframe = createYouTubeEmbed(video, { width, height, credentialless, start, controls });
 
 			const prom = loaded(iframe).then(() => this.dispatchEvent(new Event('ready')));
 
@@ -156,12 +156,12 @@ registerCustomElement('youtube-player', class HTMLYouTubePlayerElement extends H
 		setBool(this, 'controls', val);
 	}
 
-	get cookies() {
-		return getBool(this, 'cookies');
+	get credentialless() {
+		return getBool(this, 'credentialless');
 	}
 
-	set cookies(val) {
-		setBool(this, 'cookies', val);
+	set credentialless(val) {
+		setBool(this, 'credentialless', val);
 	}
 
 	get start() {
@@ -201,6 +201,6 @@ registerCustomElement('youtube-player', class HTMLYouTubePlayerElement extends H
 	}
 
 	static get observedAttributes() {
-		return ['video', 'cookies', 'height', 'width'];
+		return ['video', 'credentialless', 'height', 'width'];
 	}
 });
