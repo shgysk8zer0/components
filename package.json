@@ -1,6 +1,6 @@
 {
   "name": "@shgysk8zer0/components",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "A collection of custom elements / web components",
   "private": false,
   "type": "module",
@@ -74,7 +74,7 @@
   "peerDependencies": {
     "@highlightjs/cdn-assets": "^11.8.0",
     "@shgysk8zer0/jswaggersheets": "^1.1.0",
-    "@shgysk8zer0/kazoo": "^0.2.5",
+    "@shgysk8zer0/kazoo": "^0.3.1",
     "leaflet": "^1.9.4",
     "marked": "^5.1.1",
     "marked-highlight": "^2.0.1"
