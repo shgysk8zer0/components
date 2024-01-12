@@ -1,25 +1,16 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="color-scheme" content="light dark" />
-		<meta http-equiv="Content-Security-Policy" content="
-			default-src 'self';
-			script-src 'self' https://unpkg.com/ https://www.gstatic.com/firebasejs/ 'nonce-2922730b-7e42-4420-b730-1c98df161582';
-			style-src 'self' https://unpkg.com blob:;
-			font-src 'self' https://cdn.kernvalley.us/fonts/;
-			connect-src 'self' *.kernvalley.us https://unpkg.com https://baconipsum.com/api/ https://api.github.com/ https://raw.githubusercontent.com/shgysk8zer0/ https://api.openweathermap.org/data/2.5/ https://identitytoolkit.googleapis.com/v1/;
-			child-src  https://www.youtube-nocookie.com/embed/;
-			img-src * data: blob;
-			trusted-types default empty#html empty#script sanitizer-raw#html trust-raw#html github#gist dompurify share-to-buttons#html weather-current#html weather-forecast#html krv-events#html codepen#script-url module#script-url purify-raw#html purify#html pwa-install html-notification#script spotify-player#html spotify#script-url krv-contact#html github-user#html github-repo#html youtube#embed;
-			require-trusted-types-for 'self';
-		" />
-		<base href="/test/" />
+		<meta charset="utf-8"/>
+		<meta name="viewport" content="width=device-width"/>
+		<meta name="color-scheme" content="light dark"/>
+		<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com/ https://www.gstatic.com/firebasejs/ 'nonce-2922730b-7e42-4420-b730-1c98df161582'; style-src 'self' https://unpkg.com blob:; font-src 'self' https://cdn.kernvalley.us/fonts/; connect-src 'self' *.kernvalley.us https://unpkg.com https://baconipsum.com/api/ https://api.github.com/ https://raw.githubusercontent.com/shgysk8zer0/ https://api.openweathermap.org/data/2.5/ https://identitytoolkit.googleapis.com/v1/; child-src https://www.youtube-nocookie.com/embed/;img-src * data: blob; frame-src https://calendar.google.com/calendar/embed; trusted-types default empty#html empty#script sanitizer-raw#html trust-raw#html github#gist dompurify share-to-buttons#html weather-current#html weather-forecast#html krv-events#html codepen#script-url module#script-url purify-raw#html purify#html pwa-install html-notification#script spotify-player#html spotify#script-url krv-contact#html github-user#html github-repo#html youtube#embed youtube#script-url goog-cal#script-url; require-trusted-types-for 'self';"/>
+		<base href="/test/"/>
 		<title>@shgysk8zer0/components</title>
 		<script type="importmap" nonce="2922730b-7e42-4420-b730-1c98df161582">
 			{
 				"imports": {
+					"@shgysk8zer0/consts/": "https://unpkg.com/@shgysk8zer0/consts@1.0.8/",
 					"@shgysk8zer0/konami": "https://unpkg.com/@shgysk8zer0/konami@1.1.0/konami.js",
 					"@shgysk8zer0/kazoo/": "../node_modules/@shgysk8zer0/kazoo/",
 					"@shgysk8zer0/polyfills": "../node_modules/@shgysk8zer0/polyfills/all.min.js",
@@ -36,7 +27,7 @@
 				}
 			}
 		</script>
-		<script type="application/javascript" defer="" referrerpolicy="no-referrer" crossorigin="anonymous" integrity="sha384-mbVsY82zSLXMJro9PwjMxsGwFv+kwypUPBBdtQkkq6/T80dykbJ6669pzHfMMiYV" src="https://unpkg.com/@shgysk8zer0/polyfills@0.2.4/all.min.js" fetchpriority="auto"></script>
+		<script type="application/javascript" defer="" referrerpolicy="no-referrer" crossorigin="anonymous" integrity="sha384-h2kgNESJV1KN7BmHtXZv1j5WMcwFojESsbaNydwul3t6bqHOmzVMDaDXAEe6XLC+" src="https://unpkg.com/@shgysk8zer0/polyfills@0.3.0/all.min.js" fetchpriority="auto"></script>
 		<script type="module" src="/config.js" referrerpolicy="no-referrer"></script>
 		<script type="module" src="./js/index.js" referrerpolicy="no-referrer"></script>
 		<script type="module" src="./js/components.js" referrerpolicy="no-referrer"></script>
@@ -105,7 +96,7 @@
 			<weather-current appid="41ff0542577756523c5fcfaaeabe89d7" postalcode="93238"></weather-current>
 			<krv-events></krv-events>
 			<krv-ad>
-				<img slot="image" src="https://cdn.kernvalley.us/img/branding/events.kernvalley.us.svg" loading="lazy" decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" alt="KRV Events Logo" itemprop="image" role="img" width="92" height="92" />
+				<img slot="image" src="https://cdn.kernvalley.us/img/branding/events.kernvalley.us.svg" loading="lazy" decoding="async" crossorigin="anonymous" referrerpolicy="no-referrer" alt="KRV Events Logo" itemprop="image" role="img" width="92" height="92"/>
 				<b slot="label" itemprop="name">Kern Valley Events</b>
 				<p slot="description" itemprop="description">The best things going on in the Valley. None of the clutter. </p>
 				<span slot="calltoaction">See what's going on today.</span>

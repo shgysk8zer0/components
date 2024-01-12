@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.1.6] - 202-01-12
+
+### Added
+- Add `<google-calendar>`
+
+### Changed
+- Misc package updates
+- Switch to using `youtube#script-url` instead of `youtube#embed` for TrustedTypesPolicy
+
 ## [v0.1.5] -  2023-10-31
 
 ### Added
