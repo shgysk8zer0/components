@@ -1,9 +1,9 @@
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
 import { displayMode } from '@shgysk8zer0/kazoo/media-queries.js';
-import { loadStylesheet } from '@shgysk8zer0/kazoo/loader.js';
 import { getDeferred } from '@shgysk8zer0/kazoo/promises.js';
 import { debounce } from '@shgysk8zer0/kazoo/events.js';
-import { meta } from './import.meta.js';
+import styles from './window-controls.css.js';
+
 const symbols = {
 	shadow: Symbol('shadow'),
 };
@@ -48,7 +48,7 @@ registerCustomElement('window-controls', class HTMLWindowControlsElements extend
 
 		requestAnimationFrame(async () => {
 			container.append(titlebar, fallback, grabRegion);
-			await loadStylesheet(new URL('./components/window-controls.css', meta.url), { parent: this[symbols.shadow] });
+			this[symbols.shadow].adoptedStyleSheets = [styles];
 			this[symbols.shadow].append(container);
 			this.dispatchEvent(new Event('load'));
 		});

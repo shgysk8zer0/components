@@ -1,18 +1,16 @@
 // import HTMLCustomElement from '../custom-element.js';
 import { HTMLCustomButtonElement } from './custom.js';
 import { popup } from '@shgysk8zer0/kazoo/popup.js';
-import { getHTML } from '@shgysk8zer0/kazoo/http.js';
 import { hasGa, send } from '@shgysk8zer0/kazoo/google-analytics.js';
-import { meta } from '../import.meta.js';
-import { getURLResolver, callOnce } from '@shgysk8zer0/kazoo/utility.js';
-import { loadStylesheet } from '@shgysk8zer0/kazoo/loader.js';
 import { getString, setString, getBool, setBool, getURL, setURL } from '@shgysk8zer0/kazoo/attrs.js';
 import { setUTMParams } from '@shgysk8zer0/kazoo/utility.js';
-import { createPolicy } from '@shgysk8zer0/kazoo/trust.js';
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
 import {
 	Facebook, Twitter, Reddit, LinkedIn, Gmail, Pinterest, Email, Tumblr, Telegram, getShareURL,
 } from '@shgysk8zer0/kazoo/share-targets.js';
+import { createDeprecatedPolicy } from '../trust.js';
+import template from './share-to.html.js';
+import styles from './share-to.css.js';
 
 const protectedData = new WeakMap();
 
@@ -30,12 +28,7 @@ const labels = {
 	email: 'Send this via email',
 };
 
-const resolveURL = getURLResolver({ base: meta.url, path: './button/' });
-export const policy = createPolicy('share-to-buttons#html', {
-	createHTML: input => input,
-});
-
-const getTemplate = callOnce(() => getHTML(resolveURL('./share-to.html'), { policy }));
+createDeprecatedPolicy('share-to-buttons#html');
 
 function log(btn) {
 	if (hasGa()) {
@@ -138,11 +131,10 @@ registerCustomElement('share-to-button', class HTMLShareToButtonElement extends 
 		const internals = this.attachInternals();
 		protectedData.set(this, { shadow, internals });
 
-		getTemplate().then(tmp => tmp.cloneNode(true)).then(tmp => {
-			const wasHidden = this.hidden;
+		requestAnimationFrame(() => {
 			internals.ariaHasPopup = 'dialog';
 			internals.ariaPressed = 'false';
-			this.hidden = true;
+
 			if (typeof target === 'string') {
 				this.target = target;
 			}
@@ -162,12 +154,9 @@ registerCustomElement('share-to-button', class HTMLShareToButtonElement extends 
 			if (typeof content === 'string') {
 				this.content = content;
 			}
-			this.shadowRoot.append(tmp);
-
-			loadStylesheet(resolveURL('./share-to.css'), { parent: this.shadowRoot }).then(() => {
-				this.hidden = wasHidden;
-				this.dispatchEvent(new Event('ready'));
-			});
+			this.shadowRoot.append(template.cloneNode(true));
+			this.shadowRoot.adoptedStyleSheets = [styles];
+			this.dispatchEvent(new Event('ready'));
 		});
 
 		this.addEventListener('click', handler, { passive: true });

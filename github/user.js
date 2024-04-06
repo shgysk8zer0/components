@@ -1,19 +1,14 @@
-import { text, attr, remove, on } from '@shgysk8zer0/kazoo/dom.js';
+import { text, attr, remove } from '@shgysk8zer0/kazoo/dom.js';
 import { getJSON } from '@shgysk8zer0/kazoo/http.js';
-import { meta } from '../import.meta.js';
-import { loadStylesheet } from '@shgysk8zer0/kazoo/loader.js';
-import { getDeferred } from '@shgysk8zer0/kazoo/promises.js';
-import { whenIntersecting } from '@shgysk8zer0/kazoo/intersect.js';
-import { getURLResolver } from '@shgysk8zer0/kazoo/utility.js';
 import { getString, setString, getBool, setBool } from '@shgysk8zer0/kazoo/attrs.js';
-import { getTemplateLoader }  from '@shgysk8zer0/kazoo/loader.js';
-import { createPolicy } from '@shgysk8zer0/kazoo/trust.js';
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
+import { createDeprecatedPolicy } from '../trust.js';
+import template from './user.html.js';
+import styles from './user.css.js';
+
+createDeprecatedPolicy('github-user#html');
 
 const ENDPOINT = 'https://api.github.com';
-const policy = createPolicy('github-user#html', { createHTML: input => input });
-const resolveURL = getURLResolver({ base : meta.url, path: './github/' });
-const getTemplate = getTemplateLoader(resolveURL('./user.html'), { policy });
 
 async function getUser(user) {
 	const key = `github-user-${user}`;
@@ -31,42 +26,32 @@ registerCustomElement('github-user', class HTMLGitHubUserElement extends HTMLEle
 	constructor(user = null) {
 		super();
 
-		this.attachShadow({ mode: 'open' });
-		const internals = this.attachInternals();
-		internals.states.add('--loading');
+		const shadow = this.attachShadow({ mode: 'open' });
+		// const internals = this.attachInternals();
+		shadow.append(template.cloneNode(true));
+		shadow.adoptedStyleSheets = [styles];
+		this.dispatchEvent(new Event('ready'));
+		// internals.states.add('--loading');
 
 		Promise.resolve().then(() => {
 			if (typeof user === 'string') {
 				this.user = user;
 			}
-
-			Promise.all([
-				this.whenLoad,
-				this.whenConnected,
-				whenIntersecting(this),
-			]).then(() => Promise.all([
-				getTemplate(),
-				loadStylesheet(resolveURL('./user.css'), { parent: this.shadowRoot }),
-			]).then(([tmp]) => {
-				this.shadowRoot.append(tmp);
-				this.dispatchEvent(new Event('ready'));
-				internals.states.delete('--loading');
-			})).catch(err => {
-				console.error(err);
-				internals.state.delete('--loading');
-				internals.states.add('--error');
-			});
 		});
 	}
 
 	get ready() {
-		const { resolve, promise } = getDeferred();
+		return Promise.resolve();
+	}
 
-		if (this.shadowRoot.childElementCount < 2) {
-			on([this], ['ready'], () => resolve(), { once: true });
-		} else {
+	get whenConnected() {
+		const { promise, resolve } = Promise.withResolvers();
+		if (this.isConnected) {
 			resolve();
+		} else {
+			this.addEventListener('connected', () => resolve(), { once: true });
 		}
+
 		return promise;
 	}
 
@@ -92,7 +77,7 @@ registerCustomElement('github-user', class HTMLGitHubUserElement extends HTMLEle
 				if (typeof newVal === 'string' && newVal.length !== 0) {
 					Promise.all([
 						getUser(newVal),
-						this.ready,
+						this.whenConnected,
 					]).then(async ([user]) => {
 						try {
 							const base = this.shadowRoot;

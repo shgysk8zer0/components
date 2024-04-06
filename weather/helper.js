@@ -46,6 +46,8 @@ export function createIcon(symbol, owner = document) {
 		fill: 'currentColor',
 		viewBox: sprite.getAttribute('viewBox'),
 		role: 'presentation',
+		height: 84,
+		width: 84,
 		children: [...sprite.children].map(node => node.cloneNode(true)),
 	});
 }

@@ -1,21 +1,14 @@
 import {
 	shadows, clearSlot, getWeatherByPostalCode, createIcon, getIcon, getSprite
 } from './helper.js';
-import { createPolicy } from '@shgysk8zer0/kazoo/trust.js';
-import { getURLResolver } from '@shgysk8zer0/kazoo/utility.js';
-import { meta } from '../import.meta.js';
-import { getHTML } from '@shgysk8zer0/kazoo/http.js';
-import HTMLCustomElement from '../custom-element.js';
 
-const resolveURL = getURLResolver({ base: meta.url, path: './weather/' });
-const policy = createPolicy('weather-current#html', {
-	createHTML: input => input,
-});
-const getTemplate = async () => getHTML(resolveURL('./current.html'), { policy })
-	.then(tmp => {
-		tmp.querySelectorAll('link[href]').forEach(link => link.href = resolveURL(link.getAttribute('href')));
-		return tmp;
-	});
+import HTMLCustomElement from '../custom-element.js';
+import { createDeprecatedPolicy } from '../trust.js';
+
+import template from './current.html.js';
+import styles from './current.css.js';
+
+createDeprecatedPolicy('weather-current#html');
 
 
 HTMLCustomElement.register('weather-current', class HTMLWeatherForecastElement extends HTMLCustomElement {
@@ -42,8 +35,8 @@ HTMLCustomElement.register('weather-current', class HTMLWeatherForecastElement e
 
 			await Promise.all([this.whenConnected, this.whenLoad]);
 
-			const tmp = await getTemplate();
-			shadow.append(tmp);
+			shadow.append(template.cloneNode(true));
+			shadow.adoptedStyleSheets = [styles];
 			shadows.set(this, shadow);
 			this.dispatchEvent(new Event('ready'));
 			internals.ariaBusy = 'false';

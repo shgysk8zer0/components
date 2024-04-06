@@ -1,21 +1,15 @@
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
 import { whenIntersecting } from '@shgysk8zer0/kazoo/intersect.js';
-import { getHTML } from '@shgysk8zer0/kazoo/http.js';
-import { getURLResolver, callOnce } from '@shgysk8zer0/kazoo/utility.js';
-import { meta } from '../../import.meta.js';
-import { loadStylesheet } from '@shgysk8zer0/kazoo/loader.js';
 import { getBool, setBool, getString, setString } from '@shgysk8zer0/kazoo/attrs.js';
-import { createPolicy } from '@shgysk8zer0/kazoo/trust.js';
 import {
 	createSpotifyPlaylist, createSpotifyAlbum, createSpotifyArtist, createSpotifyTrack,
 	createSpotifyShow, parseURI, linkToUri, uriToLink, policy as embedPolicy,
 } from '@shgysk8zer0/kazoo/spotify.js';
 
-const protectedData = new WeakMap();
-const resolveURL = getURLResolver({ path: './spotify/', base: meta.url });
-const getTemplate = callOnce(() => getHTML(resolveURL('./player.html'), { policy }));
+import template from './player.html.js';
+import styles from './player.css.js';
 
-const policy = createPolicy('spotify-player#html', { createHTML: input => input });
+const protectedData = new WeakMap();
 
 registerCustomElement('spotify-player', class HTMLSpotifyPlayerElement extends HTMLElement {
 	constructor({ uri = null, large = null, loading = null } = {}) {
@@ -42,15 +36,10 @@ registerCustomElement('spotify-player', class HTMLSpotifyPlayerElement extends H
 				await whenIntersecting(this);
 			}
 
-			Promise.all([
-				getTemplate(),
-				loadStylesheet(resolveURL('./player.css'),{ parent: shadow }),
-			]).then(([tmp]) => {
-				shadow.append(tmp.cloneNode(true));
-				internals.states.delete('--loading');
-				internals.states.add('--ready');
-				this.dispatchEvent(new Event('ready'));
-			});
+			shadow.append(template.cloneNode(true));
+			shadow.adopotedStyleSheets = [styles];
+			internals.states.add('--ready');
+			this.dispatchEvent(new Event('ready'));
 		}, { once: true });
 	}
 
@@ -215,4 +204,4 @@ registerCustomElement('spotify-player', class HTMLSpotifyPlayerElement extends H
 	}
 });
 
-export const trustPolicies = [policy.name, embedPolicy.name];
+export const trustPolicies = [embedPolicy.name];

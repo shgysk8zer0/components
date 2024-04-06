@@ -1,23 +1,12 @@
 import HTMLCustomElement from '../custom-element.js';
-import { meta } from '../import.meta.js';
-import { createPolicy } from '@shgysk8zer0/kazoo/trust.js';
-import { getHTML } from '@shgysk8zer0/kazoo/http.js';
-import { getURLResolver } from '@shgysk8zer0/kazoo/utility.js';
+import { createDeprecatedPolicy } from '../trust.js';
+import template from './forecast.html.js';
+import styles from './forecast.css.js';
 import {
 	shadows, clearSlot, clearSlots, getForecastByPostalCode, createIcon, getSprite
 } from './helper.js';
 
-const policy = createPolicy('weather-forecast#html', {
-	createHTML: input => input,
-});
-
-const resolveURL = getURLResolver({ base: meta.url, path: './weather/' });
-
-const getTemplate = async () => {
-	const tmp = await getHTML(resolveURL('./forecast.html'), { policy });
-	tmp.querySelectorAll('link[href]').forEach(link => link.href = resolveURL(link.getAttribute('href')));
-	return tmp;
-};
+createDeprecatedPolicy('weather-forecast#html');
 
 HTMLCustomElement.register('weather-forecast', class HTMLWeatherForecastElement extends HTMLElement {
 	constructor({ appId = null, postalCode = null } = {}) {
@@ -32,7 +21,8 @@ HTMLCustomElement.register('weather-forecast', class HTMLWeatherForecastElement 
 				this.postalCode = postalCode;
 			}
 
-			shadow.append(await getTemplate());
+			shadow.append(template.cloneNode(true));
+			shadow.adoptedStyleSheets = [styles];
 			shadows.set(this, shadow);
 			this.dispatchEvent(new Event('ready'));
 		});
