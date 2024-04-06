@@ -1,4 +1,4 @@
-import { parseMarkdown, parseMarkdownFile, fetchMarkdown, STYLESHEETS } from '@shgysk8zer0/kazoo/markdown.js';
+import { parseMarkdown, parseMarkdownFile, registerLanguage, fetchMarkdown, STYLESHEETS } from '@shgysk8zer0/kazoo/markdown.js';
 import { getCSSStyleSheet } from '@shgysk8zer0/kazoo/http.js';
 import { whenIntersecting } from '@shgysk8zer0/kazoo/intersect.js';
 import { callOnce } from '@shgysk8zer0/kazoo/utility.js';
@@ -14,6 +14,18 @@ const ghDarkStyles = callOnce(() => getCSSStyleSheet(
 	STYLESHEETS.github.dark.href,
 	{ media: STYLESHEETS.github.dark.media }
 ));
+
+function ready() {
+	const { resolve, promise } = Promise.withResolvers();
+
+	if (document.readyState === 'complete') {
+		resolve();
+	} else {
+		globalThis.addEventListener('load', () => resolve(), { once: true });
+	}
+
+	return promise;
+}
 
 const selfStyles = new CSSStyleSheet().replace(`
 	:host {display: block; font-family: system-ui;}
@@ -94,7 +106,7 @@ export class HTMLMarkDownElement extends HTMLElement {
 	}
 
 	async render(md, { base = document.baseURI } = {}) {
-		await whenIntersecting(this);
+		await Promise.all([whenIntersecting(this), ready()]);
 		const frag = await parseMarkdown(md, { base });
 		this.#shadow.getElementById('body').replaceChildren(frag);
 	}
@@ -103,6 +115,10 @@ export class HTMLMarkDownElement extends HTMLElement {
 		await whenIntersecting(this);
 		const frag = await parseMarkdownFile(file, { base });
 		this.#shadow.getElementById('body').replaceChildren(frag);
+	}
+
+	static registerLanguage(name, def) {
+		registerLanguage(name, def);
 	}
 }
 

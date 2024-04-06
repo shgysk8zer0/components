@@ -6,7 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [v0.1.6] - 202-01-12
+## [v0.2.0]] - 2024-04-05
+
+### Changed
+- Switch to using `@aegisjsproject/*` for Trusted Types & Sanitizer
+- Numerous dependency updates
+- Markdown component no longer loads anything but plaintext language for syntax highlighting by default
+- Use `@aegisjsproject/parsers` for (mostly) all component templates and styles (no more additional requests)
+- Now requires `aegis-sanitizer#html` for sanitizer polyfill
+
+### Deprecated
+- `*#html` Trusted Types Policies are deprecated and a warning is given upon successful creation
+- `*html` & `*.css` resources are now just comments, kept to not break service workers
+
+## [v0.1.6] - 2024-01-12
 
 ### Added
 - Add `<google-calendar>`

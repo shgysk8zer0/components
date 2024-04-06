@@ -17,11 +17,11 @@ const plugins = [
 
 const globals = {};
 const external = [];
-const config = { format: 'iife', sourcemap: true, globals };
+const config = { format: 'module', sourcemap: true, globals };
 // npm run build:js:maps && npm run build:js:share && npm run build:js:mark-down
 
 export default {
 	input: './test/js/index.js',
 	onwarn, plugins, external,
-	output: { file: './test/js/index.min.js', ...config },
+	output: { file: './test/js/index.min.mjs', ...config },
 };

@@ -1,19 +1,14 @@
 import { text, attr, hide, unhide } from '@shgysk8zer0/kazoo/dom.js';
-import { loadStylesheet, loadImage, getTemplateLoader } from '@shgysk8zer0/kazoo/loader.js';
+import { loadImage } from '@shgysk8zer0/kazoo/loader.js';
 import { whenIntersecting } from '@shgysk8zer0/kazoo/intersect.js';
 import { getDeferred } from '@shgysk8zer0/kazoo/promises.js';
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
-import { getURLResolver } from '@shgysk8zer0/kazoo/utility.js';
-import { meta } from '../import.meta.js';
 import { getString, setString } from '@shgysk8zer0/kazoo/attrs.js';
-import { createPolicy }  from '@shgysk8zer0/kazoo/trust.js';
+import { createDeprecatedPolicy } from '../trust.js';
+import template from './repo.html.js';
+import styles from './repo.css.js';
 
-const policy = createPolicy('github-repo#html', { createHTML: input => input });
-const resolveURL = getURLResolver({ base: meta.url, path: './github/' });
-const getTemplate  = getTemplateLoader(resolveURL('./repo.html'), {
-	policy,
-	referrerPolicy: 'no-referrer',
-});
+createDeprecatedPolicy('github-repo#html');
 
 const symbols = {
 	shadow: Symbol('shadow'),
@@ -117,12 +112,8 @@ registerCustomElement('github-repo', class HTMLGitHubRepoElement extends HTMLEle
 			await whenIntersecting(this);
 		}
 
-		const [tmp] = await Promise.all([
-			getTemplate(),
-			loadStylesheet(resolveURL('./repo.css'), { parent: this[symbols.shadow] }),
-		]);
-
-		this[symbols.shadow].append(tmp);
+		this[symbols.shadow].adoptedStyleSheets = [styles];
+		this[symbols.shadow].replaceChildren(template.cloneNode(true));
 		this.dispatchEvent(new Event('ready'));
 	}
 
