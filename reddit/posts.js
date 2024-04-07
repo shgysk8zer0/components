@@ -1,5 +1,4 @@
 import { createElement, createImage } from '@shgysk8zer0/kazoo/elements.js';
-import { loadStylesheet } from '@shgysk8zer0/kazoo/loader.js';
 import { getJSON } from '@shgysk8zer0/kazoo/http.js';
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
 import { getString, setString, getBool, setBool } from '@shgysk8zer0/kazoo/attrs.js';
@@ -8,6 +7,8 @@ import {
 	createThumbsUpIcon, createThumbsDownIcon, createLinkExternalIcon, createCommentIcon,
 	createCalendarIcon, createPersonIcon,
 } from '@shgysk8zer0/kazoo/icons.js';
+
+import styles from './posts.css.js';
 
 const DATE_FORMAT = {
 	weekday: 'short',
@@ -36,15 +37,13 @@ registerCustomElement('reddit-posts', class HTMLRedditPostsElement extends HTMLE
 		super();
 		const shadow = this.attachShadow({ mode: 'closed' });
 		const container = createElement('div', { part: ['container'], classList: ['container'] });
+		shadow.adoptedStyleSheets = [styles];
 		shadow.append(container);
 		protectedData.set(this, { shadow, container });
 	}
 
 	async connectedCallback() {
 		await whenIntersecting(this);
-		await loadStylesheet(import.meta.resolve('./posts.css'), {
-			parent: protectedData.get(this).shadow,
-		});
 		await this.render();
 	}
 

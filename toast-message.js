@@ -1,8 +1,7 @@
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
-import { loadStylesheet } from '@shgysk8zer0/kazoo/loader.js';
 import { createElement, createSlot } from '@shgysk8zer0/kazoo/elements.js';
 import { createXIcon } from '@shgysk8zer0/kazoo/icons.js';
-import { meta } from './import.meta.js';
+import styles from './toast-message.css.js';
 
 const protectedData = new WeakMap();
 
@@ -41,10 +40,11 @@ registerCustomElement('toast-message', class HTMLToastMessageElement extends HTM
 			})
 		);
 
+		shadow.adoptedStyleSheets = [styles];
+
 		this.dispatchEvent(new Event('ready'));
 
 		Promise.all([
-			loadStylesheet(meta.resolve('./toast-message.css'), { parent: shadow }),
 			this.whenConnected,
 		]).then(() => {
 			this.hidden = ! this.open;

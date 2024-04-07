@@ -1,19 +1,17 @@
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
-import { meta } from '../import.meta.js';
-import { getURLResolver } from '@shgysk8zer0/kazoo/utility.js';
-import { loadStylesheet } from '@shgysk8zer0/kazoo/loader.js';
-import { getHTML } from '@shgysk8zer0/kazoo/http.js';
 import { query, text, on, off } from '@shgysk8zer0/kazoo/dom.js';
 import { createElement } from '@shgysk8zer0/kazoo/elements.js';
 import { hasGa, send } from '@shgysk8zer0/kazoo/google-analytics.js';
 import { registerButton } from '@shgysk8zer0/kazoo/pwa-install.js';
 import { createPolicy } from '@shgysk8zer0/kazoo/trust.js';
 import { getManifest } from '@shgysk8zer0/kazoo/http.js';
-import { callOnce, autoServiceWorkerRegistration } from '@shgysk8zer0/kazoo/utility.js';
+import { autoServiceWorkerRegistration } from '@shgysk8zer0/kazoo/utility.js';
 import '../notification/html-notification.js';
+import template from './prompt.html.js';
+import styles from './prompt.css.js';
 
 const policy = createPolicy('pwa-install', {
-	createHTML: input => input,
+	createHTML: () => '',
 	// How can I verify this correctly?
 	createScriptURL: input => {
 		if (new URL(input, document.baseURI).origin === location.origin) {
@@ -24,8 +22,6 @@ const policy = createPolicy('pwa-install', {
 	},
 });
 
-const resolveURL = getURLResolver({ base: meta.url, path: './install/' });
-const getTemplate = callOnce(() => getHTML(resolveURL('./prompt.html'), { policy }));
 const protectedData = new WeakMap();
 
 function getBySize(opts, width) {
@@ -113,11 +109,10 @@ registerCustomElement('install-prompt', class HTMLInstallPromptElement extends H
 		const shadow = this.attachShadow({ mode: 'closed' });
 		const internals = this.attachInternals();
 		protectedData.set(this, { shadow, internals });
-
+		shadow.adoptedStyleSheets = [styles];
 		Promise.all([
-			getTemplate().then(tmp => tmp.cloneNode(true)),
+			template.cloneNode(true),
 			getManifest(),
-			loadStylesheet(resolveURL('./prompt.css'), { parent: shadow }),
 		]).then(async ([base, manifest]) => {
 			/**
 			 * @TODO: Handle `prefer_related_applications` somehow
@@ -313,5 +308,3 @@ registerCustomElement('install-prompt', class HTMLInstallPromptElement extends H
 		}
 	}
 });
-
-export const trustPolicies = [policy.name];

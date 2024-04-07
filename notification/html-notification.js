@@ -1,18 +1,17 @@
 import { getDeferred } from '@shgysk8zer0/kazoo/promises.js';
-import { getURLResolver, callOnce } from '@shgysk8zer0/kazoo/utility.js';
-import { createPolicy } from '@shgysk8zer0/kazoo/trust.js';
-import { meta } from '../import.meta.js';
-import { loadStylesheet } from '@shgysk8zer0/kazoo/loader.js';
+import { createDeprecatedPolicy } from '../trust.js';
+import { getJSONScriptPolicy } from '@shgysk8zer0/kazoo/trust-policies.js';
 import { createElement, createImage } from '@shgysk8zer0/kazoo/elements.js';
 import { createXIcon, createBellIcon } from '@shgysk8zer0/kazoo/icons.js';
 import { getString, setString, getInt, setInt } from '@shgysk8zer0/kazoo/attrs.js';
 import { remove } from '@shgysk8zer0/kazoo/dom.js';
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
+// import template from './html-notification.html.js';
+import styles from './html-notification.css.js';
 
 // Need to create `<script type="application/json">`s
 const policyName = 'html-notification#script';
-const resolveURL = getURLResolver({ base: meta.url, path: './notification/' });
-const getPolicy = callOnce(() => createPolicy(policyName, { createScript: input => input }));
+createDeprecatedPolicy(policyName);
 const protectedData = new WeakMap();
 
 function getSlot(name, base) {
@@ -40,7 +39,6 @@ function setSlot(name, content, base) {
 		content.slot = name;
 		base.append(content);
 	}
-
 }
 
 /**
@@ -84,6 +82,8 @@ export class HTMLNotificationElement extends HTMLElement {
 			this.onclick = null;
 			this.onerror = null;
 		});
+
+		shadow.adoptedStyleSheets = [styles];
 
 		const tmp = createElement('div', {
 			part: 'container',
@@ -141,7 +141,7 @@ export class HTMLNotificationElement extends HTMLElement {
 			]
 		});
 
-		loadStylesheet(resolveURL('./html-notification.css'), { parent: shadow }).then(() => {
+		Promise.resolve().then(() => {
 			shadow.append(...tmp.children);
 
 			if (typeof title === 'string') {
@@ -216,7 +216,7 @@ export class HTMLNotificationElement extends HTMLElement {
 
 			if (data) {
 				const script = createElement('script', { type: 'application/json' });
-				script.text = getPolicy().createScript(JSON.stringify(data));
+				script.text = getJSONScriptPolicy().createScript(JSON.stringify(data));
 				setSlot('data', script, this);
 			}
 
@@ -481,4 +481,3 @@ export class HTMLNotificationElement extends HTMLElement {
 
 // @SEE https://developer.mozilla.org/en-US/docs/Web/API/Notification
 registerCustomElement('html-notification', HTMLNotificationElement);
-export const trustPolicies = [policyName];

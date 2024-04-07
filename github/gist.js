@@ -3,10 +3,11 @@ import { getDeferred } from '@shgysk8zer0/kazoo/promises.js';
 import { createIframe, createScript } from '@shgysk8zer0/kazoo/elements.js';
 import { createPolicy } from '@shgysk8zer0/kazoo/trust.js';
 import { getString, setString, getInt, setInt } from '@shgysk8zer0/kazoo/attrs.js';
+import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
 
 const policy = createPolicy('github#gist', {
-	createHTML: input => input,
-	createScriptURL: input => {
+	createHTML: input => input, // Used to create `srcdoc`
+	createScriptURL: input => { // Creates script src for Gist embed
 		if (input.startsWith('https://gist.github.com/')) {
 			return input;
 		} else {
@@ -73,7 +74,7 @@ async function render(target, { signal } = {}) {
 	}
 }
 
-customElements.define('github-gist', class HTMLGitHubGistElement extends HTMLElement {
+registerCustomElement('github-gist', class HTMLGitHubGistElement extends HTMLElement {
 	constructor({ user, gist } = {}) {
 		super();
 		const shadow = this.attachShadow({ mode: 'closed' });
