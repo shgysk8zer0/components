@@ -1,4 +1,6 @@
-:host {
+import { css } from '@aegisjsproject/parsers.js';
+
+export default css`:host {
 	display: block;
 	position: fixed;
 	height: var(--toast-height, auto);
@@ -97,4 +99,4 @@ slot[name="close-icon"] {
 	right: 12px;
 	padding: 12px;
 	font-size: 2em;
-}
+}`;
