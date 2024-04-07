@@ -1,4 +1,3 @@
-import '../../krv/ad.js';
 import '../../leaflet/map.js';
 import '../../leaflet/marker.js';
 import '../../github/user.js';
@@ -12,7 +11,6 @@ import '../../youtube/player.js';
 import '../../weather/current.js';
 import '../../weather/forecast.js';
 import '../../button/share-to.js';
-import '../../krv/events.js';
 import '../../mark-down.js';
 import '../../github/readme.js';
 import '../../toast.js';

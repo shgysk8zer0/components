@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.2.3] - 2024-04-06
+
+### Fixed
+- Remove components that have been moved to `@kernvalley/components`
+
 ## [v0.2.2] - 2024-04-06
 
 ### Changed
