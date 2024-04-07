@@ -1,15 +1,13 @@
-import { loadStylesheet } from '@shgysk8zer0/kazoo/loader.js';
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
 import { text } from '@shgysk8zer0/kazoo/dom.js';
 import { createElement } from '@shgysk8zer0/kazoo/elements.js';
 import { getURL, setURL, getBool, setBool, getString, setString } from '@shgysk8zer0/kazoo/attrs.js';
-import { getURLResolver, debounce } from '@shgysk8zer0/kazoo/utility.js';
+import { debounce } from '@shgysk8zer0/kazoo/utility.js';
 import { createSVG, createPath } from '@shgysk8zer0/kazoo/svg.js';
-import { meta } from '../import.meta.js';
 import { getStripeInstance, loadStripe, getCurrencySymbol } from './utils.js';
+import styles from './payment-form.css.js';
 
 const protectedData = new WeakMap();
-const resolveURL = getURLResolver({ base : meta.url, path: './stripe/' });
 const ERROR_DURATION = 5000;
 
 function getSlot(name, shadow) {
@@ -89,12 +87,10 @@ export class HTMLStripePaymentFormElement extends HTMLElement {
 	async connectedCallback() {
 		await new Promise(resolve => setTimeout(resolve, 10));
 		const { shadow, clientSecret } = protectedData.get(this);
+		shadow.adoptedStyleSheets = [styles];
 
 		const [stripe] = await Promise.all([
 			this.getStripeInstance(),
-			loadStylesheet(resolveURL('./payment-form.css'), {
-				parent: shadow,
-			})
 		]);
 
 		const { requestShipping, theme, layout } = this;

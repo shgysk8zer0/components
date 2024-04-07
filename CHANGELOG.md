@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.2.2] - 2024-04-06
+
+### Changed
+- Finish (?) transition to using AegisJSProject
+
 ## [v0.2.1] - 2024-04-05
 
 ### Fixed
