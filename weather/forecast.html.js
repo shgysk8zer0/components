@@ -1,6 +1,4 @@
-import { html } from '@aegisjsproject/parsers/html.js';
-
-export default html`<div id="wrapper" class="forecast inline-block overflow-x-auto">
+export default `<div id="wrapper" class="forecast inline-block overflow-x-auto">
 	<table class="overflow-x-auto">
 		<caption><h3 class="center">Forecast for <slot name="city">Unknown</slot></h3><hr /></caption>
 		<thead>

@@ -1,6 +1,4 @@
-import { html } from '@aegisjsproject/core/parsers/html.js';
-
-export default html`<div part="card" id="container">
+export default `<div part="card" id="container">
 	<slot name="header"></slot>
 	<a class="clearfix color-inherit" part="link container github" href="" rel="noopener external">
 		<img class="float-left" part="image avatar" decoding="async" loading="lazy" alt="avatar" crossorigin="anonymous" referrerpolicy="no-referrer" width="64" height="64" />

@@ -1,12 +1,10 @@
-import { meta } from '../import.meta.js';
 import { debounce } from '@shgysk8zer0/kazoo/utility.js';
 import { getLocation } from '@shgysk8zer0/kazoo/geo.js';
 import { on, off, query } from '@shgysk8zer0/kazoo/dom.js';
 import { createElement } from '@shgysk8zer0/kazoo/elements.js';
-import { loadStylesheet } from '@shgysk8zer0/kazoo/loader.js';
+import { loadStyleSheet } from '@shgysk8zer0/kazoo/loader.js';
 import { between } from '@shgysk8zer0/kazoo/math.js';
 import { getCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
-import { getURLResolver } from '@shgysk8zer0/kazoo/utility.js';
 import HTMLCustomElement from '../custom-element.js';
 import { MARKER_TYPES } from './marker-types.js';
 import { TILES } from './tiles.js';
@@ -15,6 +13,8 @@ import {
 	createFindLocationIcon, createZoomInIcon, createZoomOutIcon,
 	createScreenFullIcon, createScreenNormalIcon,
 } from '@shgysk8zer0/kazoo/icons.js';
+
+import styles from './map.css.js';
 
 import {
 	map as LeafletMap,
@@ -34,7 +34,6 @@ export const stylesheet = {
 
 const initialTitle = document.title;
 const GEO_EXP = /#-?\d{1,3}\.\d+,-?\d{1,3}\.\d+(,\d{1,2})?/;
-const resolveURL = getURLResolver({ base: meta.url, path: './leaflet/' });
 const protectedData = new WeakMap();
 
 async function locate(map, {
@@ -338,14 +337,16 @@ HTMLCustomElement.register('leaflet-map', class HTMLLeafletMapElement extends HT
 			});
 
 			await Promise.allSettled([
-				loadStylesheet(stylesheet.href, {
+				Promise.all([
+					new CSSStyleSheet().replace(styles),
+				]).then(sheets => protectedData.get(this).shadow.adoptedStyleSheets = sheets),
+				loadStyleSheet(stylesheet.href, {
 					// integrity: stylesheet.integrity,
 					crossOrigin: stylesheet.crossOrigin,
 					referrerPolicy: stylesheet.referrerPolicy,
 					fetchPriority: stylesheet.fetchPriority,
 					parent: protectedData.get(this).shadow,
 				}),
-				loadStylesheet(resolveURL('./map.css'), { parent: shadow }),
 			]);
 
 			requestAnimationFrame(async () => {

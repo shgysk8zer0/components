@@ -1,12 +1,11 @@
+import { sanitizer } from '@aegisjsproject/sanitizer/config/base.js';
 import { text, attr, remove } from '@shgysk8zer0/kazoo/dom.js';
 import { getJSON } from '@shgysk8zer0/kazoo/http.js';
 import { getString, setString, getBool, setBool } from '@shgysk8zer0/kazoo/attrs.js';
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
-import { createDeprecatedPolicy } from '../trust.js';
+import { whenIntersecting } from '@shgysk8zer0/kazoo/intersect.js';
 import template from './user.html.js';
 import styles from './user.css.js';
-
-createDeprecatedPolicy('github-user#html');
 
 const ENDPOINT = 'https://api.github.com';
 
@@ -27,21 +26,35 @@ registerCustomElement('github-user', class HTMLGitHubUserElement extends HTMLEle
 		super();
 
 		const shadow = this.attachShadow({ mode: 'open' });
-		// const internals = this.attachInternals();
-		shadow.append(template.cloneNode(true));
-		shadow.adoptedStyleSheets = [styles];
 		this.dispatchEvent(new Event('ready'));
-		// internals.states.add('--loading');
 
 		Promise.resolve().then(() => {
 			if (typeof user === 'string') {
 				this.user = user;
 			}
 		});
+
+		whenIntersecting(this).then(async () => {
+			shadow.adoptedStyleSheets = await Promise.all([
+				new CSSStyleSheet().replace(styles),
+			]);
+
+			shadow.setHTML(template, sanitizer);
+			this.dispatchEvent(new Event('ready'));
+
+		});
 	}
 
 	get ready() {
-		return Promise.resolve();
+		const { resolve, promise } = Promise.withResolvers();
+
+		if (this.shadowRoot.childElementCount === 0) {
+			this.addEventListener('ready', () => resolve(), { once: true });
+		} else {
+			resolve();
+		}
+
+		return promise;
 	}
 
 	get whenConnected() {
@@ -78,6 +91,7 @@ registerCustomElement('github-user', class HTMLGitHubUserElement extends HTMLEle
 					Promise.all([
 						getUser(newVal),
 						this.whenConnected,
+						this.ready,
 					]).then(async ([user]) => {
 						try {
 							const base = this.shadowRoot;

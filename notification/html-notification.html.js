@@ -1,6 +1,4 @@
-import { html } from '@aegisjsproject/parsers/html.js';
-
-export default html`<button part="close" type="button" title="Close">
+export default `<button part="close" type="button" title="Close">
 	<slot name="close-icon">
 		<svg width="17" height="22" viewBox="0 0 12 16" role="img" aria-hidden="true" fill="currentColor">
 			<path fill-rule="evenodd" d="M7.48 8l3.75 3.75-1.48 1.48L6 9.48l-3.75 3.75-1.48-1.48L4.52 8 .77 4.25l1.48-1.48L6 6.52l3.75-3.75 1.48 1.48L7.48 8z"/>

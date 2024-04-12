@@ -1,6 +1,4 @@
-import { css } from '@aegisjsproject/parsers/css.js';
-
-export default css`:host {
+export default `:host {
 	position: fixed;
 	display: inline-grid;
 	padding: 12px 20px 8px 8px;

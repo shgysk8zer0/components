@@ -87,7 +87,10 @@ export class HTMLStripePaymentFormElement extends HTMLElement {
 	async connectedCallback() {
 		await new Promise(resolve => setTimeout(resolve, 10));
 		const { shadow, clientSecret } = protectedData.get(this);
-		shadow.adoptedStyleSheets = [styles];
+
+		shadow.adoptedStyleSheets = await Promise.all([
+			new CSSStyleSheet().replace(styles),
+		]);
 
 		const [stripe] = await Promise.all([
 			this.getStripeInstance(),

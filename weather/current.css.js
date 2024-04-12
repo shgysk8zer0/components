@@ -1,6 +1,4 @@
-import { css } from '@aegisjsproject/parsers/css.js';
-
-export default  css`:host {
+export default  `:host {
 	display: inline-block;
 	padding: 18px;
 	font-size: 16px;

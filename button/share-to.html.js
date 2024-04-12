@@ -1,5 +1,4 @@
-import { html } from '@aegisjsproject/parsers/html.js';
-export default html`<div part="container" aria-hidden="true">
+export default `<div part="container" aria-hidden="true">
 	<span part="icon facebook-icon">
 		<slot name="facebook-icon">
 			<img src="https://cdn.kernvalley.us//img/logos/mono/light/facebook.svg" width="32" height="32" crossorigin="anonymous" loading="lazy" decoding="async" referrerpolicy="no-referrer" alt="" />

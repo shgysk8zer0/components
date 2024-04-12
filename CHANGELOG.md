@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.2.4] - 2024-04-11
+
+### Changed
+- Component templates & styles are now treated as strings and parsed lazily
+
 ## [v0.2.3] - 2024-04-06
 
 ### Fixed

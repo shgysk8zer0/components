@@ -1,6 +1,4 @@
-import { html } from '@aegisjsproject/parsers/html.js';
-
-export default html`<div id="wrapper" class="grid">
+export default `<div id="wrapper" class="grid">
 	<h3 class="center" part="city" id="city">
 		<span>Weather in</span>
 		<slot name="city">Unknown</slot>

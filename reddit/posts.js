@@ -37,13 +37,15 @@ registerCustomElement('reddit-posts', class HTMLRedditPostsElement extends HTMLE
 		super();
 		const shadow = this.attachShadow({ mode: 'closed' });
 		const container = createElement('div', { part: ['container'], classList: ['container'] });
-		shadow.adoptedStyleSheets = [styles];
 		shadow.append(container);
 		protectedData.set(this, { shadow, container });
 	}
 
 	async connectedCallback() {
 		await whenIntersecting(this);
+		const { shadow } = protectedData.get(this);
+
+		shadow.adoptedStyleSheets = [styles];
 		await this.render();
 	}
 

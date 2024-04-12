@@ -1,36 +1,39 @@
 import HTMLCustomElement from '../custom-element.js';
-import { createDeprecatedPolicy } from '../trust.js';
+import { whenIntersecting } from '@shgysk8zer0/kazoo/intersect.js';
+import { sanitizer } from '@aegisjsproject/sanitizer/config/base.js';
 import template from './forecast.html.js';
 import styles from './forecast.css.js';
 import {
 	shadows, clearSlot, clearSlots, getForecastByPostalCode, createIcon, getSprite
 } from './helper.js';
 
-createDeprecatedPolicy('weather-forecast#html');
-
 HTMLCustomElement.register('weather-forecast', class HTMLWeatherForecastElement extends HTMLElement {
 	constructor({ appId = null, postalCode = null } = {}) {
 		super();
+		const shadow = this.attachShadow({ mode: 'closed' });
+		shadows.set(this, shadow);
 
-		Promise.resolve(this.attachShadow({ mode: 'closed' })).then(async shadow => {
-			if (typeof appId === 'string') {
-				this.appId = appId;
-			}
+		if (typeof appId === 'string') {
+			this.appId = appId;
+		}
 
-			if (typeof postalCode === 'string' || typeof postalCode === 'number') {
-				this.postalCode = postalCode;
-			}
-
-			shadow.append(template.cloneNode(true));
-			shadow.adoptedStyleSheets = [styles];
-			shadows.set(this, shadow);
-			this.dispatchEvent(new Event('ready'));
-		});
+		if (typeof postalCode === 'string' || typeof postalCode === 'number') {
+			this.postalCode = postalCode;
+		}
 	}
 
 	async connectedCallback() {
 		this.dispatchEvent(new Event('connected'));
-		await this.ready;
+		await whenIntersecting(this);
+		const shadow = shadows.get(this);
+
+		shadow.adoptedStyleSheets = await Promise.all([
+			new CSSStyleSheet().replace(styles),
+		]);
+
+		shadow.setHTML(template, sanitizer);
+
+		this.dispatchEvent(new Event('ready'));
 		this.update();
 	}
 

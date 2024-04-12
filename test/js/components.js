@@ -15,3 +15,4 @@ import '../../mark-down.js';
 import '../../github/readme.js';
 import '../../toast.js';
 import '../../spotify/player.js';
+import '../../youtube/player.js';

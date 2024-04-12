@@ -1,6 +1,4 @@
-import { css } from '@aegisjsproject/parsers/css.js';
-
-export default css`:host(:not([hidden])) {
+export default `:host(:not([hidden])) {
 	contain: strict;
 	display: block;
 	position: fixed;
@@ -12,7 +10,7 @@ export default css`:host(:not([hidden])) {
 	width: var(--titlebar-area-width, 100%);
 	width: env(titlebar-area-width, var(--titlebar-area-width, 100%));
 	height: var(--titlebar-area-height, 33px);
-	height: env(titlebar-area-height, var(--titlebar-area-height, 33px));
+	height: env(titlebar-area-height, var(--titlebar-area-height, 0));
 	color-scheme: light dark;
 }
 

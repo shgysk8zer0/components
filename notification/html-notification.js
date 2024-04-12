@@ -1,5 +1,4 @@
 import { getDeferred } from '@shgysk8zer0/kazoo/promises.js';
-import { createDeprecatedPolicy } from '../trust.js';
 import { getJSONScriptPolicy } from '@shgysk8zer0/kazoo/trust-policies.js';
 import { createElement, createImage } from '@shgysk8zer0/kazoo/elements.js';
 import { createXIcon, createBellIcon } from '@shgysk8zer0/kazoo/icons.js';
@@ -10,8 +9,6 @@ import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
 import styles from './html-notification.css.js';
 
 // Need to create `<script type="application/json">`s
-const policyName = 'html-notification#script';
-createDeprecatedPolicy(policyName);
 const protectedData = new WeakMap();
 
 function getSlot(name, base) {
@@ -74,7 +71,7 @@ export class HTMLNotificationElement extends HTMLElement {
 		const internals = this.attachInternals();
 		protectedData.set(this, { shadow, internals });
 
-		Promise.resolve().then(() => {
+		Promise.resolve().then(async () => {
 			internals.role = 'dialog';
 			this.hidden = true;
 			this.onshow = null;
@@ -83,7 +80,9 @@ export class HTMLNotificationElement extends HTMLElement {
 			this.onerror = null;
 		});
 
-		shadow.adoptedStyleSheets = [styles];
+		Promise.all([
+			new CSSStyleSheet().relace(styles)
+		]).then(sheets => shadow.adoptedStyleSheets = sheets);
 
 		const tmp = createElement('div', {
 			part: 'container',

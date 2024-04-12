@@ -5,10 +5,11 @@ import { hasGa, send } from '@shgysk8zer0/kazoo/google-analytics.js';
 import { getString, setString, getBool, setBool, getURL, setURL } from '@shgysk8zer0/kazoo/attrs.js';
 import { setUTMParams } from '@shgysk8zer0/kazoo/utility.js';
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
+import { sanitizer } from '@aegisjsproject/sanitizer/config/base.js';
+import { whenIntersecting } from '@shgysk8zer0/kazoo/intersect.js';
 import {
 	Facebook, Twitter, Reddit, LinkedIn, Gmail, Pinterest, Email, Tumblr, Telegram, getShareURL,
 } from '@shgysk8zer0/kazoo/share-targets.js';
-import { createDeprecatedPolicy } from '../trust.js';
 import template from './share-to.html.js';
 import styles from './share-to.css.js';
 
@@ -27,8 +28,6 @@ const labels = {
 	print: 'Print this',
 	email: 'Send this via email',
 };
-
-createDeprecatedPolicy('share-to-buttons#html');
 
 function log(btn) {
 	if (hasGa()) {
@@ -51,7 +50,7 @@ function openShare(target, { title, text, url, height = 360, width = 720, name =
 	return popup(getShareURL(target, { title, text, url }), { height, width, name });
 }
 
-async function handler ({ type, key, isTrusted, currentTarget }) {
+async function handler({ type, key, isTrusted, currentTarget }) {
 	if (isTrusted && ! currentTarget.disabled && (type === 'click' || key === 'Enter' || key === ' ')) {
 		const { internals } = protectedData.get(currentTarget);
 		internals.ariaPressed = 'true';
@@ -131,7 +130,7 @@ registerCustomElement('share-to-button', class HTMLShareToButtonElement extends 
 		const internals = this.attachInternals();
 		protectedData.set(this, { shadow, internals });
 
-		requestAnimationFrame(() => {
+		requestAnimationFrame(async () => {
 			internals.ariaHasPopup = 'dialog';
 			internals.ariaPressed = 'false';
 
@@ -154,8 +153,14 @@ registerCustomElement('share-to-button', class HTMLShareToButtonElement extends 
 			if (typeof content === 'string') {
 				this.content = content;
 			}
-			this.shadowRoot.append(template.cloneNode(true));
-			this.shadowRoot.adoptedStyleSheets = [styles];
+
+			await whenIntersecting(this);
+
+			shadow.adoptedStyleSheets = await Promise.all([
+				new CSSStyleSheet().replace(styles),
+			]);
+
+			shadow.setHTML(template, sanitizer);
 			this.dispatchEvent(new Event('ready'));
 		});
 
@@ -166,7 +171,7 @@ registerCustomElement('share-to-button', class HTMLShareToButtonElement extends 
 	get ready() {
 		return new Promise(resolve => {
 			if (this.shadowRoot.childElementCount === 0) {
-				this.addEventListener('ready', () => resolve(this), {once: true});
+				this.addEventListener('ready', () => resolve(this), { once: true });
 			} else {
 				resolve(this);
 			}

@@ -1,22 +1,19 @@
 import {
 	shadows, clearSlot, getWeatherByPostalCode, createIcon, getIcon, getSprite
 } from './helper.js';
+import { sanitizer } from '@aegisjsproject/sanitizer/config/base.js';
 
 import HTMLCustomElement from '../custom-element.js';
-import { createDeprecatedPolicy } from '../trust.js';
-
 import template from './current.html.js';
 import styles from './current.css.js';
-
-createDeprecatedPolicy('weather-current#html');
 
 
 HTMLCustomElement.register('weather-current', class HTMLWeatherForecastElement extends HTMLCustomElement {
 	constructor({ appId = null, postalCode = null, loading = null } = {}) {
 		super();
+		const shadow = this.attachShadow({ mode: 'closed' });
 
 		this.addEventListener('connected', async () => {
-			const shadow = this.attachShadow({ mode: 'closed' });
 			const internals = this.attachInternals();
 			internals.role = 'group';
 			internals.ariaBusy = 'true';
@@ -35,8 +32,10 @@ HTMLCustomElement.register('weather-current', class HTMLWeatherForecastElement e
 
 			await Promise.all([this.whenConnected, this.whenLoad]);
 
-			shadow.append(template.cloneNode(true));
-			shadow.adoptedStyleSheets = [styles];
+			shadow.adoptedStyleSheets = await Promise.all([
+				new CSSStyleSheet().replace(styles),
+			]);
+			shadow.setHTML(template, sanitizer);
 			shadows.set(this, shadow);
 			this.dispatchEvent(new Event('ready'));
 			internals.ariaBusy = 'false';
