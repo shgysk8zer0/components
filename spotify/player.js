@@ -10,14 +10,16 @@ import {
 import template from './player.html.js';
 import styles from './player.css.js';
 
-const protectedData = new WeakMap();
-
 registerCustomElement('spotify-player', class HTMLSpotifyPlayerElement extends HTMLElement {
+	#shadow;
+	#internals;
+
 	constructor({ uri = null, large = null, loading = null } = {}) {
 		super();
-		const shadow = this.attachShadow({ mode: 'closed' });
+		const shadow = this.attachShadow({ mode: 'open' });
 		const internals = this.attachInternals();
-		protectedData.set(this, { shadow, internals });
+		this.#shadow = shadow;
+		this.#internals = internals;
 		internals.states.add('--loading');
 
 		requestAnimationFrame(async () => {
@@ -42,28 +44,40 @@ registerCustomElement('spotify-player', class HTMLSpotifyPlayerElement extends H
 			await whenIntersecting(this);
 		}
 
-		const { shadow, internals } = protectedData.get(this);
-
-		shadow.adopotedStyleSheets = await Promise.all([
+		this.#shadow.adoptedStyleSheets = await Promise.all([
 			new CSSStyleSheet().replace(styles),
 		]);
 
-		shadow.setHTML(template, sanitizer);
-		internals.states.delete('--loading');
-		internals.states.add('--ready');
+		if (typeof this.popover === 'string' && ! (matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+			this.addEventListener('beforetoggle', ({ newState }) => {
+				if (newState === 'open') {
+					this.animate([
+						{ opacity: 0, transform: 'translatey(100%)' },
+						{ opacity: 1, transform: 'none' },
+					], {
+						easing: 'ease-out',
+						duration: 300,
+						fill: 'both',
+					});
+				}
+			}, { passive: true });
+		}
+
+		this.#shadow.setHTML(template, sanitizer);
+		this.#internals.states.delete('--loading');
+		this.#internals.states.add('--ready');
 		this.dispatchEvent(new Event('ready'));
 	}
 
 	get ready() {
-		return new Promise(resolve => {
-			const { shadow } = protectedData.get(this);
+		const { resolve, promise } = Promise.withResolvers();
+		if (this.#shadow.childElementCount === 0) {
+			this.addEventListener('ready', () => resolve(), { once: true });
+		} else {
+			resolve();
+		}
 
-			if (shadow.childElementCount === 0) {
-				this.addEventListener('ready', () => resolve(), { once: true });
-			} else {
-				resolve();
-			}
-		});
+		return promise;
 	}
 
 	get credentialless() {
@@ -155,8 +169,7 @@ registerCustomElement('spotify-player', class HTMLSpotifyPlayerElement extends H
 					if (typeof newValue === 'string') {
 						const { uri, loading, large, credentialless } = this;
 						const { type = null, id = null } = parseURI(uri);
-						const { internals } = protectedData.get(this);
-						internals.states.add('--loading');
+						this.#internals.states.add('--loading');
 
 						if (loading === 'lazy') {
 							await whenIntersecting(this);
@@ -170,7 +183,7 @@ registerCustomElement('spotify-player', class HTMLSpotifyPlayerElement extends H
 						});
 
 						iframe.addEventListener('load', () => {
-							internals.states.delete('--loading');
+							this.#internals.states.delete('--loading');
 							this.dispatchEvent(new CustomEvent('trackchange', { detail: {
 								from: oldValue,
 								to: newValue

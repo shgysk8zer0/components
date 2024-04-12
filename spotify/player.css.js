@@ -14,6 +14,19 @@ export default `:host {
 	height: 380px;
 }
 
+@supports selector(:popover-open) {
+	:host([popover]:not(:popover-open)) {
+		display: none;
+	}
+
+	:host([popover]) {
+		margin: unset;
+		inset: auto 8px 0 auto;
+		border: none;
+		padding: 0;
+	}
+}
+
 :host([uri^="spotify:show:"]),
 :host([link^="https://open.spotify.com/show"]) {
 	min-width: 360px;
