@@ -9,9 +9,11 @@ export default `:host(:not([hidden])) {
 	left: env(titlebar-area-x, var(--titlebar-area-x, 0));
 	width: var(--titlebar-area-width, 100%);
 	width: env(titlebar-area-width, var(--titlebar-area-width, 100%));
-	height: var(--titlebar-area-height, 33px);
+	height: var(--titlebar-area-height, 0);
 	height: env(titlebar-area-height, var(--titlebar-area-height, 0));
 	color-scheme: light dark;
+	/* Max z-index minus 2*/
+	z-index: 21478483654;
 }
 
 :host([theme="light"]) {

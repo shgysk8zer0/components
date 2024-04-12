@@ -46,7 +46,7 @@
 					"@aegisjsproject/markdown/": "https://unpkg.com/@aegisjsproject/markdown@0.1.2/",
 					"@aegisjsproject/aegis-md": "https://unpkg.com/@aegisjsproject/aegis-md@0.0.2/aegis-md.js",
 					"@aegisjsproject/aegis-md/": "https://unpkg.com/@aegisjsproject/aegis-md@0.0.2/",
-					"@shgysk8zer0/components/": "https://unpkg.com/@shgysk8zer0/components@0.1.6/",
+					"@shgysk8zer0/components/": "../",
 					"@kernvalley/components/": "https://unpkg.com/@kernvalley/components@1.1.5/",
 					"@webcomponents/custom-elements": "https://unpkg.com/@webcomponents/custom-elements@1.6.0/custom-elements.min.js",
 					"leaflet": "https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.esm.js",
@@ -67,22 +67,36 @@
 		<link rel="stylesheet" href="./css/index.css" referrerpolicy="no-referrer" />
 	</head>
 	<body>
+	<window-controls>
+		<search slot="fallback">
+			<form id="search-fallback">
+				<fieldset disabled="">
+					<label for="search">Search Page</label>
+					<input type="search" name="search" placeholer="#element-id" autocomplete="off" list="els-list" required="" />
+					<button type="submit">Search</button>
+					<button type="reset">Clear</button>
+				</fieldset>
+			</form>
+		</search>
+		<datalist id="els-list"></datalist>
+	</window-controls>
 		<header id="header">
-			<github-user user="shgysk8zer0"></github-user>
-			<github-repo user="shgysk8zer0" repo="components"></github-repo>
+			<github-user user="shgysk8zer0" id="gh-user"></github-user>
+			<github-repo user="shgysk8zer0" repo="components" id="gh-repo"></github-repo>
 		</header>
 		<nav id="nav">
 			<button is="app-list">Apps</button>
 			<button type="button" class="btn btn-default" data-user="shgysk8zer0" data-repo="kazoo" data-branch="master">Kazoo README</button>
 			<button type="button" class="btn btn-default" data-user="shgysk8zer0" data-repo="polyfills" data-branch="master">Polyfills README</button>
+			<button type="button" class="btn btn-default" popovertarget="spotify-player" popovertargetaction="toggle">Toggle Spotify</button>
 			<button type="button" class="btn btn-reject sign-out" disabled="">Sign-Out</button>
 			<button type="button" class="btn btn-accept sign-in" disabled="">Sign-In</button>
 			<share-to-button target="twitter"></share-to-button>
 			<share-to-button target="linkedin"></share-to-button>
 		</nav>
 		<main id="main">
-			<!-- <spotify-player uri="spotify:playlist:6yJYdOmWrsrV3F7rEEDxzT?si=5be4b3bd4d1c4cd1" large=""></spotify-player> -->
-			<mark-down>
+			<spotify-player uri="spotify:playlist:6yJYdOmWrsrV3F7rEEDxzT?si=5be4b3bd4d1c4cd1" id="spotify-player" popover="manual" large=""></spotify-player>
+			<mark-down id="inline-md">
 				<h1 slot="header">Inline</h1>
 				<template slot="content">
 					# This is from a `&lt;template&gt;`
@@ -115,19 +129,19 @@
 					| 2   | 3   | 4    | 5   | 6     | 7   | 8   |
 				</template>
 			</mark-down>
-			<github-readme user="shgysk8zer0" repo="components" branch="master">
+			<github-readme user="shgysk8zer0" repo="components" branch="master" id="gh-readme">
 				<h2 slot="header">README</h2>
 			</github-readme>
-			<github-md-file user="shgysk8zer0" repo="components" branch="master" file="CHANGELOG.md">
+			<github-md-file user="shgysk8zer0" repo="components" branch="master" file="CHANGELOG.md" id="gh-changelog">
 				<h2 slot="header">CHANGELOG</h2>
 			</github-md-file>
 			<loading-spinner></loading-spinner>
-			<weather-forecast appid="41ff0542577756523c5fcfaaeabe89d7" postalcode="93238"></weather-forecast>
-			<bacon-ipsum></bacon-ipsum>
-			<leaflet-map zoomcontrol="" allowfullscreen="" allowlocate=""></leaflet-map>
+			<weather-forecast appid="41ff0542577756523c5fcfaaeabe89d7" postalcode="93238" id="weather-forecast"></weather-forecast>
+			<bacon-ipsum id="bacon-ipsum"></bacon-ipsum>
+			<leaflet-map zoomcontrol="" allowfullscreen="" allowlocate="" id="leaflet-map"></leaflet-map>
 		</main>
 		<aside id="sidebar">
-			<weather-current appid="41ff0542577756523c5fcfaaeabe89d7" postalcode="93238"></weather-current>
+			<weather-current appid="41ff0542577756523c5fcfaaeabe89d7" postalcode="93238" id="weather-current"></weather-current>
 		</aside>
 		<footer id="footer"></footer>
 		<share-button class="fixed bottom right btn btn-primary" url="https://npmjs.org/package/@shgysk8zer0/components" sharetitle="@shgysk8zer0/components" text="A collection of custom elements / web components">Share</share-button>

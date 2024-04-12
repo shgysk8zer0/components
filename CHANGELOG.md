@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.2.5] - 2024-04-12
+
+### Added
+- Add special styles for `<spotify-player popover="...">`
+- Add tests for `<window-controls>` with page search by id
+
+### Changed
+- Update importmap example in README
+
+### Fixed
+- Fix setting styles for `<window-controls>`
+
 ## [v0.2.4] - 2024-04-11
 
 ### Changed

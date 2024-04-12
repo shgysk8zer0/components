@@ -20,6 +20,29 @@ getJSON(import.meta.resolve('../../package.json')).then(({ name, version, descri
 	setDescription(description);
 });
 
+on('window-controls form', 'submit', event => {
+	event.preventDefault();
+	const data = new FormData(event.target);
+	const match = document.getElementById(data.get('search'));
+
+	if (match instanceof Element && ! match.hidden) {
+		match.scrollIntoView({ behavior: 'smooth', block: 'end' });
+	} else {
+		const popover = document.createElement('div');
+		popover.popover = 'auto';
+		popover.textContent = `No results for \`#${data.get('search')}\`.`;
+		popover.addEventListener('toggle', ({ target, newState }) => {
+			if (newState === 'closed') {
+				target.remove();
+			}
+		});
+
+		document.body.append(popover);
+		popover.showPopover();
+		setTimeout(() => popover.hidePopover(), 3000);
+	}
+});
+
 on('[data-repo][data-user]', 'click', async ({ currentTarget}) => {
 	const HTMLGitHubReadMeElement = await customElements.whenDefined('github-readme');
 	const readme = new HTMLGitHubReadMeElement();
@@ -74,3 +97,19 @@ Promise.all([
 	document.body.append(dialog);
 	dialog.showModal();
 });
+
+const ignored = new Set(['els-list', 'search-fallback', 'spotify-player']);
+
+document.getElementById('els-list').append(...Array.from(
+	document.querySelectorAll('[id]'),
+	({ id }) => {
+		if (! ignored.has(id)) {
+			const option = document.createElement('option');
+			option.label = id;
+			option.value = id;
+			return option;
+		}
+	}
+).filter(opt => opt instanceof HTMLOptionElement));
+
+document.querySelectorAll('window-controls [disabled]').forEach(el => el.disabled = false);
