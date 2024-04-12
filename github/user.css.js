@@ -1,6 +1,4 @@
-import { css } from  '@aegisjsproject/parsers/css.js';
-
-export default css`:host {
+export default `:host {
 	display: inline-block;
 	font-family: 'Roboto', sans-serif;
 	text-align: left;

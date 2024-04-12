@@ -1,14 +1,12 @@
+import { sanitizer } from '@aegisjsproject/sanitizer/config/base.js';
 import { text, attr, hide, unhide } from '@shgysk8zer0/kazoo/dom.js';
 import { loadImage } from '@shgysk8zer0/kazoo/loader.js';
 import { whenIntersecting } from '@shgysk8zer0/kazoo/intersect.js';
 import { getDeferred } from '@shgysk8zer0/kazoo/promises.js';
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
 import { getString, setString } from '@shgysk8zer0/kazoo/attrs.js';
-import { createDeprecatedPolicy } from '../trust.js';
 import template from './repo.html.js';
 import styles from './repo.css.js';
-
-createDeprecatedPolicy('github-repo#html');
 
 const symbols = {
 	shadow: Symbol('shadow'),
@@ -112,8 +110,10 @@ registerCustomElement('github-repo', class HTMLGitHubRepoElement extends HTMLEle
 			await whenIntersecting(this);
 		}
 
-		this[symbols.shadow].adoptedStyleSheets = [styles];
-		this[symbols.shadow].replaceChildren(template.cloneNode(true));
+		this[symbols.shadow].adoptedStyleSheets = await Promise.all([
+			new CSSStyleSheet().replace(styles),
+		]);
+		this[symbols.shadow].setHTML(template, sanitizer);
 		this.dispatchEvent(new Event('ready'));
 	}
 

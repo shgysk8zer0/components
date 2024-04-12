@@ -1,5 +1,6 @@
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
 import { whenIntersecting } from '@shgysk8zer0/kazoo/intersect.js';
+import { sanitizer } from '@aegisjsproject/sanitizer/config/base.js';
 import { getBool, setBool, getString, setString } from '@shgysk8zer0/kazoo/attrs.js';
 import {
 	createSpotifyPlaylist, createSpotifyAlbum, createSpotifyArtist, createSpotifyTrack,
@@ -14,12 +15,12 @@ const protectedData = new WeakMap();
 registerCustomElement('spotify-player', class HTMLSpotifyPlayerElement extends HTMLElement {
 	constructor({ uri = null, large = null, loading = null } = {}) {
 		super();
-		const shadow = this.attachShadow({ mode: 'open' });
+		const shadow = this.attachShadow({ mode: 'closed' });
 		const internals = this.attachInternals();
 		protectedData.set(this, { shadow, internals });
 		internals.states.add('--loading');
 
-		this.addEventListener('connected', async () => {
+		requestAnimationFrame(async () => {
 			if (typeof uri === 'string') {
 				this.uri = uri;
 			}
@@ -31,27 +32,33 @@ registerCustomElement('spotify-player', class HTMLSpotifyPlayerElement extends H
 			if (typeof loading === 'string') {
 				this.loading = loading;
 			}
-
-			if (this.loading === 'lazy') {
-				await whenIntersecting(this);
-			}
-
-			shadow.append(template.cloneNode(true));
-			shadow.adopotedStyleSheets = [styles];
-			internals.states.add('--ready');
-			this.dispatchEvent(new Event('ready'));
-		}, { once: true });
+		});
 	}
 
-	connectedCallback() {
+	async connectedCallback() {
 		this.dispatchEvent(new Event('connected'));
+
+		if (this.loading === 'lazy') {
+			await whenIntersecting(this);
+		}
+
+		const { shadow, internals } = protectedData.get(this);
+
+		shadow.adopotedStyleSheets = await Promise.all([
+			new CSSStyleSheet().replace(styles),
+		]);
+
+		shadow.setHTML(template, sanitizer);
+		internals.states.delete('--loading');
+		internals.states.add('--ready');
+		this.dispatchEvent(new Event('ready'));
 	}
 
 	get ready() {
 		return new Promise(resolve => {
 			const { shadow } = protectedData.get(this);
 
-			if (shadow.childElementCount < 2) {
+			if (shadow.childElementCount === 0) {
 				this.addEventListener('ready', () => resolve(), { once: true });
 			} else {
 				resolve();

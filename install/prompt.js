@@ -1,3 +1,4 @@
+import { sanitizer } from '@aegisjsproject/sanitizer/config/base.js';
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
 import { query, text, on, off } from '@shgysk8zer0/kazoo/dom.js';
 import { createElement } from '@shgysk8zer0/kazoo/elements.js';
@@ -109,11 +110,15 @@ registerCustomElement('install-prompt', class HTMLInstallPromptElement extends H
 		const shadow = this.attachShadow({ mode: 'closed' });
 		const internals = this.attachInternals();
 		protectedData.set(this, { shadow, internals });
-		shadow.adoptedStyleSheets = [styles];
+
 		Promise.all([
-			template.cloneNode(true),
 			getManifest(),
-		]).then(async ([base, manifest]) => {
+			Promise.all([
+				new CSSStyleSheet().replace(styles),
+			])
+		]).then(async ([manifest, sheets]) => {
+			shadow.adoptedStyleSheets = sheets;
+			shadow.setHTML(template, sanitizer);
 			/**
 			 * @TODO: Handle `prefer_related_applications` somehow
 			 */
@@ -126,7 +131,7 @@ registerCustomElement('install-prompt', class HTMLInstallPromptElement extends H
 			internals.ariaHidden = this.open ? 'false': 'true';
 			internals.ariaLabel = `Install ${name}`;
 
-			registerButton(base.querySelector('.header-btn.install-btn')).catch(() => {});
+			registerButton(shadow.querySelector('.header-btn.install-btn')).catch(() => {});
 
 			if (Array.isArray(screenshots) && screenshots.length !==0) {
 				const screenshot = getPicture({
@@ -135,18 +140,18 @@ registerCustomElement('install-prompt', class HTMLInstallPromptElement extends H
 					fallbackWidth: 640,
 				});
 
-				base.querySelector('[part="screenshots"]').replaceChildren(screenshot);
+				shadow.querySelector('[part="screenshots"]').replaceChildren(screenshot);
 			}
 
 			if (Array.isArray(icons) && icons.length !== 0) {
 				const icon = getIcon(...icons);
-				base.querySelector('[part="icon"]').replaceChildren(icon);
+				shadow.querySelector('[part="icon"]').replaceChildren(icon);
 			}
 
-			text('[part="name"]', name, { base });
-			text('[part="description"]', description, { base });
-			on(query('[data-click="close"]', base), { click: () => this.open = false });
-			on(query('[data-platform]', base), {
+			text('[part="name"]', name, { base: shadow });
+			text('[part="description"]', description, { base: shadow });
+			on(query('[data-click="close"]', shadow), { click: () => this.open = false });
+			on(query('[data-platform]', shadow), {
 				click: ({ target }) => {
 					const platform = target.closest('[data-platform]').dataset.platform;
 
@@ -163,18 +168,18 @@ registerCustomElement('install-prompt', class HTMLInstallPromptElement extends H
 			});
 
 			if (Array.isArray(features)) {
-				base.querySelector('[part="features"]').replaceChildren(...features.map(text => createElement('li', { text })));
+				shadow.querySelector('[part="features"]').replaceChildren(...features.map(text => createElement('li', { text })));
 			}
 
 			if (Array.isArray(categories) && categories.length !== 0) {
-				base.querySelector('[part="categories"]')
+				shadow.querySelector('[part="categories"]')
 					.replaceChildren(...categories.map(text => createElement('li', { text, part: ['category'] })));
 			}
 
 			relatedApps.forEach(({ platform, url, id }) => {
 				switch(platform) {
 					case 'webapp':
-						Promise.resolve(base.querySelector('[data-platform="webapp"]')).then(btn => {
+						Promise.resolve(shadow.querySelector('[data-platform="webapp"]')).then(btn => {
 							btn.hidden = false;
 
 							registerButton(btn).catch(() => {});
@@ -186,7 +191,7 @@ registerCustomElement('install-prompt', class HTMLInstallPromptElement extends H
 					case 'windows':
 					case 'f-droid':
 					case 'amazon':
-						Promise.resolve(base.querySelector(`[data-platform="${platform}"]`)).then(btn => {
+						Promise.resolve(shadow.querySelector(`[data-platform="${platform}"]`)).then(btn => {
 							if (btn instanceof HTMLAnchorElement) {
 								const link = typeof url === 'string' ? new URL(url, btn.href) : new URL(btn.href);
 
@@ -203,7 +208,7 @@ registerCustomElement('install-prompt', class HTMLInstallPromptElement extends H
 			});
 
 			if (hasGa()) {
-				on(query('[data-platform]', base), {
+				on(query('[data-platform]', shadow), {
 					click: ({ target }) => {
 						send({
 							eventCategory: 'install',
@@ -215,7 +220,6 @@ registerCustomElement('install-prompt', class HTMLInstallPromptElement extends H
 			}
 
 			requestAnimationFrame(() => {
-				shadow.append(base);
 				this.dispatchEvent(new Event('ready'));
 			});
 		});

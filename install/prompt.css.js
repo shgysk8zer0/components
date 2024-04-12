@@ -1,6 +1,4 @@
-import { css } from '@aegisjsproject/parsers/css.js';
-
-export default css`:host {
+export default `:host {
 	display: block;
 	contain: strict;
 	z-index: var(--z-top, 100);

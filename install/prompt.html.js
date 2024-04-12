@@ -1,6 +1,4 @@
-import { html } from '@aegisjsproject/parsers/html.js';
-
-export default html`<div id="container">
+export default `<div id="container">
 	<header id="header" class="grid" part="header">
 		<span id="icon" part="icon">
 			<svg width="192" height="192" viewBox="0 0 12 16">

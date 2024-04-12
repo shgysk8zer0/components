@@ -12,6 +12,28 @@ registerCustomElement('toast-message', class HTMLToastMessageElement extends HTM
 		const internals = this.attachInternals();
 		protectedData.set(this, { shadow, internals });
 
+		Promise.all([
+			this.whenConnected,
+		]).then(() => {
+			this.hidden = ! this.open;
+
+			if (typeof message === 'string') {
+				this.text = message;
+			} else if (message instanceof HTMLElement) {
+				this.contentElement = message;
+			}
+		});
+	}
+
+	async connectedCallback() {
+		this.dispatchEvent(new Event('connected'));
+		const { internals, shadow } = protectedData.get(this);
+		internals.role = 'dialog';
+
+		shadow.adoptedStyleSheets = await Promise.all([
+			new CSSStyleSheet().replace(styles),
+		]);
+
 		shadow.append(
 			createElement('div', {
 				classList: ['backdrop'],
@@ -40,27 +62,7 @@ registerCustomElement('toast-message', class HTMLToastMessageElement extends HTM
 			})
 		);
 
-		shadow.adoptedStyleSheets = [styles];
-
 		this.dispatchEvent(new Event('ready'));
-
-		Promise.all([
-			this.whenConnected,
-		]).then(() => {
-			this.hidden = ! this.open;
-
-			if (typeof message === 'string') {
-				this.text = message;
-			} else if (message instanceof HTMLElement) {
-				this.contentElement = message;
-			}
-		});
-	}
-
-	connectedCallback() {
-		this.dispatchEvent(new Event('connected'));
-		const { internals } = protectedData.get(this);
-		internals.role = 'dialog';
 	}
 
 	async attributeChangedCallback(attr, oldVal, newVal) {

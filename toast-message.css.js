@@ -1,6 +1,4 @@
-import { css } from '@aegisjsproject/parsers.js';
-
-export default css`:host {
+export default `:host {
 	display: block;
 	position: fixed;
 	height: var(--toast-height, auto);

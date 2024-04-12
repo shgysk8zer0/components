@@ -1,6 +1,4 @@
-import { html } from '@aegisjsproject/parsers/html.js';
-
-export default html`<div part="container">
+export default `<div part="container">
 	<header part="repo">
 		<h4 part="repo-header">
 			<a href="" part="repo-link link">

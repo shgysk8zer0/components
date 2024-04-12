@@ -1,6 +1,4 @@
-import { css } from '@aegisjsproject/parsers/css.js';
-
-export default css`:host, :host([role="button"]) {
+export default `:host, :host([role="button"]) {
 	display: inline-block;
 	max-width: 100%;
 	max-height: 100%;
