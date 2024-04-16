@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.2.6] - 2024-04-16
+
+### Fixed
+- Fix typo in creating styles for `<html-notification>`
+
 ## [v0.2.5] - 2024-04-12
 
 ### Added
