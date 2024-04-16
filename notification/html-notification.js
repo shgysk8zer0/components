@@ -81,7 +81,7 @@ export class HTMLNotificationElement extends HTMLElement {
 		});
 
 		Promise.all([
-			new CSSStyleSheet().relace(styles)
+			new CSSStyleSheet().replace(styles)
 		]).then(sheets => shadow.adoptedStyleSheets = sheets);
 
 		const tmp = createElement('div', {
