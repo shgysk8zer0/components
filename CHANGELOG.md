@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.2.8] - 2024-06-08
+
+### Added
+- Multiple enhancements to `<photo-booth>`
+
 ## [v0.2.7] - 2024-06-07
 
 ### Added
