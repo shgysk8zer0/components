@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.2.9] - 2024-06-09
+
+### Added
+- Add support for media queries for `<photo-booth>`
+
+### Changed
+- Do not exit fullscreen when changing camera in `<photo-booth>`
+
 ## [v0.2.8] - 2024-06-08
 
 ### Added

@@ -4,6 +4,16 @@ import { WEBP as WEBP_MIME, PNG as PNG_MIME, JPEG as JPEG_MIME } from '@shgysk8z
 import { WEBP as WEBP_EXT, PNG as PNG_EXT, JPEG as JPEG_EXT } from '@shgysk8zer0/consts/exts.js';
 import { createImage, createElement } from '@shgysk8zer0/kazoo/elements.js';
 
+function showMedia(el) {
+	if (el.hidden){
+		return false;
+	} else if (! el.dataset.hasOwnProperty('media')) {
+		return true;
+	} else {
+		return matchMedia(el.dataset.media).matches;
+	}
+}
+
 function getType(el) {
 	switch (el.tagName.toLowerCase()) {
 		case 'img':
@@ -391,7 +401,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 
 	disconnectedCallback() {
 		if (this.#controller instanceof AbortController && !this.#controller.signal.aborted) {
-			this.#controller.abort(`<${this.tagName}> was disconencted.`);
+			this.#controller.abort(`<${this.tagName}> was disconnected.`);
 		}
 
 		this.stop();
@@ -566,7 +576,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 
 	async start({ signal } = {}) {
 		if (this.active) {
-			this.stop();
+			this.stop({ exitFullscreen: false });
 		}
 
 		await this.whenConnected;
@@ -600,7 +610,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 		}, { once: true });
 	}
 
-	stop() {
+	stop({ exitFullscreen = true } = {}) {
 		if (this.#stream instanceof MediaStream) {
 			this.#video.pause();
 			this.#stream.getTracks().forEach(track => track.stop());
@@ -612,7 +622,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 			this.#internals.states.add('--inactive');
 			this.#shadow.getElementById('start').disabled = false;
 
-			if (this.isSameNode(document.fullscreenElement)) {
+			if (exitFullscreen && this.isSameNode(document.fullscreenElement)) {
 				this.ownerDocument.exitFullscreen();
 			}
 		}
@@ -788,7 +798,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 
 		if (assignedMedia.length !== 0) {
 			this.#ctx.scale(1, 1);
-			assignedMedia.filter(el => ! el.hidden).forEach(el => {
+			assignedMedia.filter(showMedia).forEach(el => {
 				try {
 					const { x, y, width, height, type, text, font, fill, lineWidth } = getMediaInfo(el);
 
