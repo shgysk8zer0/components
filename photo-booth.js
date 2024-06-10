@@ -15,9 +15,9 @@ function showMedia(el) {
 }
 
 function getType(el) {
-	switch (el.tagName.toLowerCase()) {
-		case 'img':
-		case 'video':
+	switch (el.tagName) {
+		case 'IMG':
+		case 'VIDEO':
 			return 'image';
 
 		default:
@@ -637,6 +637,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 		y,
 		width,
 		height,
+		media,
 		alt = 'Canvas image',
 		crossOrigin = 'anonymous',
 		referrerPolicy = 'no-referrer',
@@ -656,6 +657,12 @@ class HTMLPhotoBoothElement extends HTMLElement {
 
 		if (typeof height !== 'number') {
 			img.height = img.naturalHeight;
+		}
+
+		if (typeof media === 'string') {
+			img.dataset.media = media;
+		} else if (media instanceof MediaQueryList) {
+			img.dataset.media = media.media;
 		}
 
 		this.append(img);
@@ -686,12 +693,19 @@ class HTMLPhotoBoothElement extends HTMLElement {
 		font,
 		x,
 		y,
+		media,
 	} = {}) {
 		const el = createElement('span', {
 			text,
 			dataset: { fill, font, x, y },
 			slot: 'media',
 		});
+
+		if (typeof media === 'string') {
+			el.dataset.media = media;
+		} else if (media instanceof MediaQueryList) {
+			el.dataset.media = media.media;
+		}
 
 		this.append(el);
 		return el;
@@ -798,6 +812,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 
 		if (assignedMedia.length !== 0) {
 			this.#ctx.scale(1, 1);
+
 			assignedMedia.filter(showMedia).forEach(el => {
 				try {
 					const { x, y, width, height, type, text, font, fill, lineWidth } = getMediaInfo(el);
