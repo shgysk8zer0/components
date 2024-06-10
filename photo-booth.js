@@ -31,7 +31,7 @@ function getMediaInfo(el) {
 	const [width, height] = type === 'image' ? [el.width, el.height] : [NaN, NaN];
 	const text = type === 'text' ? el.textContent.trim() : '';
 
-	return {
+	return Object.freeze({
 		x: Math.max(parseInt(x), 0),
 		y: Math.max(parseInt(y), 0),
 		width,
@@ -41,7 +41,9 @@ function getMediaInfo(el) {
 		fill,
 		font,
 		lineWidth: Math.max(parseInt(lineWidth), 1),
-	};
+		show: showMedia(el),
+		el,
+	});
 }
 
 const template = html`<div part="controls" class="panel overlay absolute bottom full-width">
@@ -309,6 +311,9 @@ class HTMLPhotoBoothElement extends HTMLElement {
 	/** @private {MediaQueryList} */
 	#mediaQuery;
 
+	/** @private {Map} */
+	#media;
+
 	constructor() {
 		super();
 		this.#shadow = this.attachShadow({ mode: 'closed' });
@@ -325,6 +330,8 @@ class HTMLPhotoBoothElement extends HTMLElement {
 		this.#mediaSlot.hidden = true;
 		this.#mediaSlot.name = 'media';
 		this.#mediaQuery = matchMedia('(orientation: landscape');
+		this.#media = new Map();
+		this.#mediaSlot.addEventListener('slotchange', () => this.refreshMedia());
 	}
 
 	connectedCallback() {
@@ -404,6 +411,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 			this.#controller.abort(`<${this.tagName}> was disconnected.`);
 		}
 
+		this.#media.clear();
 		this.stop();
 	}
 
@@ -423,6 +431,10 @@ class HTMLPhotoBoothElement extends HTMLElement {
 
 	get mediaElements() {
 		return this.#mediaSlot.assignedElements();
+	}
+
+	get mediaItems() {
+		return [...this.#media.values()].filter(item => item.show);
 	}
 
 	get orientation() {
@@ -572,6 +584,10 @@ class HTMLPhotoBoothElement extends HTMLElement {
 			default:
 				return PNG_EXT[0];
 		}
+	}
+
+	refreshMedia() {
+		this.#media = new Map(this.#mediaSlot.assignedElements().map(el => [el, getMediaInfo(el)]));
 	}
 
 	async start({ signal } = {}) {
@@ -806,36 +822,35 @@ class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	#renderFrame({ signal } = {}) {
-		const assignedMedia = this.mediaElements;
 		this.#ctx.scale(-1, 1);
 		this.#ctx.drawImage(this.#video, 0, 0, this.#canvas.width, this.#canvas.height);
 
-		if (assignedMedia.length !== 0) {
+		if (this.#media.size !== 0) {
 			this.#ctx.scale(1, 1);
 
-			assignedMedia.filter(showMedia).forEach(el => {
-				try {
-					const { x, y, width, height, type, text, font, fill, lineWidth } = getMediaInfo(el);
+			for (const [el, { x, y, width, height, type, text, font, fill, lineWidth, show }] of this.#media.entries()) {
+				if (show) {
+					try {
+						switch (type) {
+							case 'image':
+								this.#ctx.drawImage(el, x, y, width, height);
+								break;
 
-					switch (type) {
-						case 'image':
-							this.#ctx.drawImage(el, x, y, width, height);
-							break;
+							case 'text':
+								this.#ctx.font = font;
+								this.#ctx.fillStyle = fill;
+								this.#ctx.lineWidth = lineWidth;
+								this.#ctx.fillText(text, x, y);
+								break;
 
-						case 'text':
-							this.#ctx.font = font;
-							this.#ctx.fillStyle = fill;
-							this.#ctx.lineWidth = lineWidth;
-							this.#ctx.fillText(text, x, y);
-							break;
-
-						default:
-							throw new TypeError(`Unknown type to render: "${type ?? 'unknown'}".`);
+							default:
+								throw new TypeError(`Unknown type to render: "${type ?? 'unknown'}".`);
+						}
+					} catch (err) {
+						console.error(err);
 					}
-				} catch (err) {
-					console.error(err);
 				}
-			});
+			}
 
 		}
 

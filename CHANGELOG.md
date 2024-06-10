@@ -6,7 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [v0.2.9] - 2024-06-09
+## [v0.2.10] - 2024-06-10
+
+### Added
+- Support creating media (images & text) with media queries in `<photo-booth>`
+- Cache media info for `<photo-booth>` (do not query & parse on every frame)
+
+## [v0.2.9] - 2024-06-9
 
 ### Added
 - Add support for media queries for `<photo-booth>`
