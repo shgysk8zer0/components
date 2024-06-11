@@ -4,6 +4,20 @@ import { WEBP as WEBP_MIME, PNG as PNG_MIME, JPEG as JPEG_MIME } from '@shgysk8z
 import { WEBP as WEBP_EXT, PNG as PNG_EXT, JPEG as JPEG_EXT } from '@shgysk8zer0/consts/exts.js';
 import { createImage, createElement } from '@shgysk8zer0/kazoo/elements.js';
 
+function getDimensions(el)  {
+	switch(el.tagName.toLowerCase()) {
+		case 'img':
+		case 'video':
+			return [el.width, el.height];
+
+		case 'svg':
+			return [el.width.baseVal.value, el.height.baseVal.value];
+
+		default:
+			return [NaN, NaN];
+	}
+}
+
 function showMedia(el) {
 	if (el.hidden){
 		return false;
@@ -15,35 +29,17 @@ function showMedia(el) {
 }
 
 function getType(el) {
-	switch (el.tagName) {
-		case 'IMG':
-		case 'VIDEO':
+	switch (el.tagName.toLowerCase()) {
+		case 'svg':
+			return 'svg';
+
+		case 'img':
+		case 'video':
 			return 'image';
 
 		default:
 			return 'text';
 	}
-}
-
-function getMediaInfo(el) {
-	const { x = 0, y = 0, fill = '#000000', font = '20px sans-serif', lineWidth = 1 } = el.dataset;
-	const type = getType(el);
-	const [width, height] = type === 'image' ? [el.width, el.height] : [NaN, NaN];
-	const text = type === 'text' ? el.textContent.trim() : '';
-
-	return Object.freeze({
-		x: Math.max(parseInt(x), 0),
-		y: Math.max(parseInt(y), 0),
-		width,
-		height,
-		type,
-		text,
-		fill,
-		font,
-		lineWidth: Math.max(parseInt(lineWidth), 1),
-		show: showMedia(el),
-		el,
-	});
 }
 
 const template = html`<div part="controls overlay" class="panel overlay absolute bottom full-width">
@@ -246,6 +242,9 @@ select.input {
 }
 
 @media (orientation: portrait) {
+	:host(:fullscreen) #opts {
+		margin-top: 65px;
+	}
 	.panel {
 		height: 96px;
 	}
@@ -320,6 +319,9 @@ class HTMLPhotoBoothElement extends HTMLElement {
 	/** @private {Map} */
 	#overlays;
 
+	/** @private {Map<Element,object>} */
+	#blobImages;
+
 	constructor() {
 		super();
 		this.#shadow = this.attachShadow({ mode: 'closed' });
@@ -343,6 +345,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 		this.#overlaySlot.hidden = true;
 		this.#overlays = new Map();
 		this.#overlaySlot.addEventListener('slotchange', () => this.refreshOverlays());
+		this.#blobImages = new Map();
 	}
 
 	connectedCallback() {
@@ -420,6 +423,11 @@ class HTMLPhotoBoothElement extends HTMLElement {
 	disconnectedCallback() {
 		if (this.#controller instanceof AbortController && !this.#controller.signal.aborted) {
 			this.#controller.abort(`<${this.tagName}> was disconnected.`);
+		}
+
+		if (this.#blobImages.size !== 0) {
+			this.#blobImages.value().forEach(img => URL.revokeObjectURL(img.src));
+			this.#blobImages.clear();
 		}
 
 		this.#media.clear();
@@ -607,7 +615,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	refreshMedia() {
-		this.#media = new Map(this.#mediaSlot.assignedElements().map(el => [el, getMediaInfo(el)]));
+		this.#media = new Map(this.#mediaSlot.assignedElements().map(el => [el, this.#getMediaInfo(el)]));
 	}
 
 	refreshOverlays() {
@@ -889,13 +897,18 @@ class HTMLPhotoBoothElement extends HTMLElement {
 		}
 
 		if (this.#media.size !== 0) {
-
 			for (const item of this.#media.values()) {
 				if (item.show) {
 					try {
 						switch (item.type) {
 							case 'image':
 								this.#ctx.drawImage(item.el, item.x, item.y, item.width, item.height);
+								break;
+
+							case 'svg':
+								if (this.#blobImages.has(item.el)) {
+									this.#ctx.drawImage(this.#blobImages.get(item.el), item.x, item.y, item.width, item.height);
+								}
 								break;
 
 							case 'text':
@@ -921,6 +934,35 @@ class HTMLPhotoBoothElement extends HTMLElement {
 		} else {
 			requestAnimationFrame(() => this.#renderFrame({ signal }));
 		}
+	}
+
+	#getMediaInfo(el) {
+		const { x = 0, y = 0, fill = '#000000', font = '20px sans-serif', lineWidth = 1 } = el.dataset;
+		const type = getType(el);
+		const [width, height] = getDimensions(el);
+		const text = type === 'text' ? el.textContent.trim() : '';
+
+		if (type === 'svg' && ! this.#blobImages.has(el)) {
+			const blob = new Blob([el.outerHTML], { type: 'image/svg+xml' });
+			const img = new Image(width, height);
+			img.src = URL.createObjectURL(blob);
+			img.crossOrigin = 'anonymous';
+			img.decode().then(() => this.#blobImages.set(el, img));
+		}
+
+		return Object.freeze({
+			x: Math.max(parseInt(x), 0),
+			y: Math.max(parseInt(y), 0),
+			width,
+			height,
+			type,
+			text,
+			fill,
+			font,
+			lineWidth: Math.max(parseInt(lineWidth), 1),
+			show: showMedia(el),
+			el,
+		});
 	}
 
 	static get observedAttributes() {
