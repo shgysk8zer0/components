@@ -18,13 +18,13 @@ function getDimensions(el)  {
 	}
 }
 
-function showMedia(el) {
-	if (el.hidden){
+function showItem(item) {
+	if (item.el.hidden) {
 		return false;
-	} else if (! el.dataset.hasOwnProperty('media')) {
-		return true;
+	} else if (item.media instanceof MediaQueryList) {
+		return item.media.matches;
 	} else {
-		return matchMedia(el.dataset.media).matches;
+		return true;
 	}
 }
 
@@ -366,7 +366,8 @@ class HTMLPhotoBoothElement extends HTMLElement {
 			}
 		});
 
-		controls.querySelector('#capture').addEventListener('click', () => {
+		controls.querySelector('#capture').addEventListener('click', async () => {
+			this.dispatchEvent(new Event('beforecapture'));
 			if (this.shutter) {
 				this.#canvas.animate([
 					{ filter: 'none' },
@@ -377,10 +378,12 @@ class HTMLPhotoBoothElement extends HTMLElement {
 					easing: 'ease-in-out',
 				});
 			}
-			this.saveAs(`capture-${new Date().toISOString()}${this.ext}`).catch(alert);
+
+			await this.saveAs(`capture-${new Date().toISOString()}${this.ext}`);
+			this.dispatchEvent(new Event('aftercapture'));
 		});
 
-		controls.querySelector('#start').addEventListener('click', () => this.start().catch(alert));
+		controls.querySelector('#start').addEventListener('click', () => this.start());
 		controls.querySelector('#stop').addEventListener('click', () => this.stop());
 		controls.querySelector('#fullscreen').addEventListener('click', () => this.requestFullscreen());
 
@@ -409,7 +412,11 @@ class HTMLPhotoBoothElement extends HTMLElement {
 		controls.querySelector('#fullscreen').disabled = false;
 
 		if (navigator.share instanceof Function) {
-			controls.querySelector('#share').addEventListener('click', () => this.share());
+			controls.querySelector('#share').addEventListener('click', async () => {
+				this.dispatchEvent(new Event('beforecapture'));
+				await this.share();
+				this.dispatchEvent(new Event('aftercapture'));
+			});
 			controls.querySelector('#share').disabled = false;
 		} else {
 			controls.querySelector('#share').disabled = true;
@@ -458,11 +465,11 @@ class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	get overlayItems() {
-		return [...this.#overlays.values()].filter(item => item.show);
+		return [...this.#overlays.values()].filter(item => showItem(item));
 	}
 
 	get mediaItems() {
-		return [...this.#media.values()].filter(item => item.show);
+		return [...this.#media.values()].filter(item => showItem(item));
 	}
 
 	get orientation() {
@@ -620,7 +627,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 
 	refreshOverlays() {
 		this.#overlays = new Map(this.#overlaySlot.assignedNodes().map(el => {
-			const { x = 0, y = 0, height = 0, width = 0, fill = '#000000' } = el.dataset;
+			const { x = 0, y = 0, height = 0, width = 0, fill = '#000000', media } = el.dataset;
 
 			return [el, Object.freeze({
 				x: parseInt(x),
@@ -628,7 +635,8 @@ class HTMLPhotoBoothElement extends HTMLElement {
 				height: parseInt(height),
 				width: parseInt(width),
 				fill,
-				show: showMedia(el),
+				el,
+				media: typeof media === 'string' ? matchMedia(media) : null,
 			})];
 		}));
 	}
@@ -889,7 +897,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 
 		if (this.#overlays.size !== 0) {
 			for (const overlay of this.#overlays.values()) {
-				if (overlay.show) {
+				if (showItem(overlay)) {
 					this.#ctx.fillStyle = overlay.fill;
 					this.#ctx.fillRect(overlay.x, overlay.y, overlay.width, overlay.height);
 				}
@@ -898,7 +906,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 
 		if (this.#media.size !== 0) {
 			for (const item of this.#media.values()) {
-				if (item.show) {
+				if (showItem(item)) {
 					try {
 						switch (item.type) {
 							case 'image':
@@ -937,7 +945,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	#getMediaInfo(el) {
-		const { x = 0, y = 0, fill = '#000000', font = '20px sans-serif', lineWidth = 1 } = el.dataset;
+		const { x = 0, y = 0, fill = '#000000', font = '20px sans-serif', lineWidth = 1, media } = el.dataset;
 		const type = getType(el);
 		const [width, height] = getDimensions(el);
 		const text = type === 'text' ? el.textContent.trim() : '';
@@ -960,7 +968,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 			fill,
 			font,
 			lineWidth: Math.max(parseInt(lineWidth), 1),
-			show: showMedia(el),
+			media: typeof media === 'string' ? matchMedia(media) : null,
 			el,
 		});
 	}
