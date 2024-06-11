@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [[v0.2.13] - 2024-06-11
+
+### Added
+- Added support for mirroring camera in `<photo-booth>`
+
+### Fixed
+- Fix camera options sizing in `<photo-booth>`
+
 ## [v0.2.12] - 2024-06-11
 
 ### Added
