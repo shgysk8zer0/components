@@ -105,7 +105,7 @@ const settingsTemplate = html`<details id="opts" class="absolute top full-width 
 			<option label="90%" value="0.9"></option>
 		</datalist>
 		<fieldset class="no-border">
-			<legend>Camera Settings Menu</legend>
+			<legend class="visually-hidden">Camera Settings Menu</legend>
 			<div class="form-group">
 				<label for="facingmode" class="input-label block">Camera Facing Mode</label>
 				<select name="facingMode" id="facingmode" class="settings-control input block" required="">
@@ -129,6 +129,10 @@ const settingsTemplate = html`<details id="opts" class="absolute top full-width 
 				<label for="shutter" class="input-label block">Shutter / Flash</label>
 				<input type="checkbox" id="shutter" name="shutter" class="settings-control" />
 			</div>
+			<div class="form-group">
+				<label for="mirror" class="input-label block">Mirror</label>
+				<input type="checkbox" id="mirror" name="mirror" class="settings-control" />
+			</div>
 		</fieldset>
 	</form>
 </details>`;
@@ -139,6 +143,7 @@ const styles = css`:host {
 	isolation: isolate;
 	position: relative;
 	color-scheme: dark;
+	background-color: #232323;
 }
 
 summary {
@@ -183,6 +188,14 @@ input[type="checkbox"] {
 	padding: 0.8em 1.4em;
 	margin-block: 0.4em;
 	box-sizing: border-box;
+	font-size: inherit;
+}
+
+.visually-hidden {
+	visibility: hidden;
+	display: inline-block;
+	width: 0;
+	height: 0;
 }
 
 select.input {
@@ -229,6 +242,11 @@ select.input {
 	font-size: 32px;
 	padding: 10px;
 	height: fit-content;
+	}
+
+#opts[open] {
+	height: calc(100% - 128px);
+	overflow: auto;
 }
 
 @media (any-pointer: fine) {
@@ -242,11 +260,16 @@ select.input {
 }
 
 @media (orientation: portrait) {
-	:host(:fullscreen) #opts {
+	:host(:fullscreen) canvas {
 		margin-top: 65px;
 	}
+
 	.panel {
 		height: 96px;
+	}
+
+	#opts[open] {
+		height: calc(100% - 96px);
 	}
 
 	.btn svg {
@@ -279,7 +302,7 @@ select.input {
 	aspect-ratio: 9/16;
 }`;
 
-class HTMLPhotoBoothElement extends HTMLElement {
+export class HTMLPhotoBoothElement extends HTMLElement {
 	/** @private {ShadowRoot} */
 	#shadow;
 
@@ -530,6 +553,14 @@ class HTMLPhotoBoothElement extends HTMLElement {
 
 	get frontFacing() {
 		return this.facingMode === 'user';
+	}
+
+	get mirror(){
+		return this.hasAttribute('mirror');
+	}
+
+	set mirror(val) {
+		this.toggleAttribute('mirror', val);
 	}
 
 	set frontFacing(val) {
@@ -810,7 +841,11 @@ class HTMLPhotoBoothElement extends HTMLElement {
 
 		this.whenConnected.then(() => {
 			try {
+				const oldMirror = this.mirror;
+				this.mirror = false;
+				this.#renderFrame();
 				this.#canvas.toBlob(resolve, this.type, this.quality);
+				this.mirror = oldMirror;
 			} catch (err) {
 				reject(err);
 			}
@@ -891,9 +926,14 @@ class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	#renderFrame({ signal } = {}) {
-		this.#ctx.scale(-1, 1);
-		this.#ctx.drawImage(this.#video, 0, 0, this.#canvas.width, this.#canvas.height);
-		this.#ctx.scale(1, 1);
+		if (this.mirror) {
+			this.#ctx.save();
+			this.#ctx.scale(-1, 1);
+			this.#ctx.drawImage(this.#video, -this.#canvas.width, 0, this.#canvas.width, this.#canvas.height);
+			this.#ctx.restore();
+		} else {
+			this.#ctx.drawImage(this.#video, 0, 0, this.#canvas.width, this.#canvas.height);
+		}
 
 		if (this.#overlays.size !== 0) {
 			for (const overlay of this.#overlays.values()) {
