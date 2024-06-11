@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.2.11] - 2024-06-10
+
+### Added
+- Add support for "overlay"s (filled rects) in `<photo-booth>`
+
 ## [v0.2.10] - 2024-06-10
 
 ### Added

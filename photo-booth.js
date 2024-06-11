@@ -46,7 +46,7 @@ function getMediaInfo(el) {
 	});
 }
 
-const template = html`<div part="controls" class="panel overlay absolute bottom full-width">
+const template = html`<div part="controls overlay" class="panel overlay absolute bottom full-width">
 	<button type="button" id="start" class="btn when-inactive" data-action="start" title="Open Camera"  aria-label="Open Camera">
 		<slot name="start-icon">
 			<svg width="96" height="96" viewBox="0 0 16 16" fill="currentColor">
@@ -92,7 +92,7 @@ const template = html`<div part="controls" class="panel overlay absolute bottom 
 	</button>
 </div>`;
 
-const settingsTemplate = html`<details id="opts" class="absolute top full-width overlay" part="settings">
+const settingsTemplate = html`<details id="opts" class="absolute top full-width overlay" part="settings overlay">
 	<summary title="Camera Settings" aria-label="Camera Settings">
 		<slot name="settings-icon">
 			<svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor" role="presentation">
@@ -236,7 +236,7 @@ select.input {
 }
 
 @media (any-pointer: fine) {
-	.overaly {
+	.overlay {
 		transition: opacity 300ms ease-in-out;
 	}
 
@@ -290,6 +290,9 @@ class HTMLPhotoBoothElement extends HTMLElement {
 	/** @private {HTMLSlotElement} */
 	#mediaSlot;
 
+	/** @private {HTMLSlotElement} */
+	#overlaySlot;
+
 	/** @private {boolean} */
 	#makesSense = false;
 
@@ -314,6 +317,9 @@ class HTMLPhotoBoothElement extends HTMLElement {
 	/** @private {Map} */
 	#media;
 
+	/** @private {Map} */
+	#overlays;
+
 	constructor() {
 		super();
 		this.#shadow = this.attachShadow({ mode: 'closed' });
@@ -332,6 +338,11 @@ class HTMLPhotoBoothElement extends HTMLElement {
 		this.#mediaQuery = matchMedia('(orientation: landscape');
 		this.#media = new Map();
 		this.#mediaSlot.addEventListener('slotchange', () => this.refreshMedia());
+		this.#overlaySlot = document.createElement('slot');
+		this.#overlaySlot.name = 'overlay';
+		this.#overlaySlot.hidden = true;
+		this.#overlays = new Map();
+		this.#overlaySlot.addEventListener('slotchange', () => this.refreshOverlays());
 	}
 
 	connectedCallback() {
@@ -401,7 +412,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 			controls.querySelector('#share').disabled = true;
 		}
 
-		this.#shadow.replaceChildren(settings, this.#canvas, this.#video, this.#mediaSlot, controls);
+		this.#shadow.replaceChildren(settings, this.#canvas, this.#video, this.#mediaSlot, this.#overlaySlot, controls);
 		this.#shadow.adoptedStyleSheets = [styles];
 		this.dispatchEvent(new Event('connected'));
 	}
@@ -412,6 +423,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 		}
 
 		this.#media.clear();
+		this.#overlays.clear();
 		this.stop();
 	}
 
@@ -431,6 +443,14 @@ class HTMLPhotoBoothElement extends HTMLElement {
 
 	get mediaElements() {
 		return this.#mediaSlot.assignedElements();
+	}
+
+	get overalyElements() {
+		return this.#overlaySlot.assignedElements();
+	}
+
+	get overlayItems() {
+		return [...this.#overlays.values()].filter(item => item.show);
 	}
 
 	get mediaItems() {
@@ -590,6 +610,21 @@ class HTMLPhotoBoothElement extends HTMLElement {
 		this.#media = new Map(this.#mediaSlot.assignedElements().map(el => [el, getMediaInfo(el)]));
 	}
 
+	refreshOverlays() {
+		this.#overlays = new Map(this.#overlaySlot.assignedNodes().map(el => {
+			const { x = 0, y = 0, height = 0, width = 0, fill = '#000000' } = el.dataset;
+
+			return [el, Object.freeze({
+				x: parseInt(x),
+				y: parseInt(y),
+				height: parseInt(height),
+				width: parseInt(width),
+				fill,
+				show: showMedia(el),
+			})];
+		}));
+	}
+
 	async start({ signal } = {}) {
 		if (this.active) {
 			this.stop({ exitFullscreen: false });
@@ -727,6 +762,24 @@ class HTMLPhotoBoothElement extends HTMLElement {
 		return el;
 	}
 
+	async addOverlay({
+		x = 0,
+		y = 0,
+		height = 0,
+		width = 0,
+		fill = '#000000',
+	}) {
+		const overlay = this.ownerDocument.createElement('div');
+		overlay.slot = 'overlay';
+		overlay.dataset.x = x.toString();
+		overlay.dataset.y = y.toString();
+		overlay.dataset.width = width.toString();
+		overlay.dataset.height = height.toString();
+		overlay.dataset.fill = fill.toString();
+		this.append(overlay);
+		return overlay;
+	}
+
 	async toFile(filename) {
 		if (typeof filename !== 'string' || filename.length === 0) {
 			throw new TypeError('Filename must be a non-empty string.');
@@ -824,27 +877,36 @@ class HTMLPhotoBoothElement extends HTMLElement {
 	#renderFrame({ signal } = {}) {
 		this.#ctx.scale(-1, 1);
 		this.#ctx.drawImage(this.#video, 0, 0, this.#canvas.width, this.#canvas.height);
+		this.#ctx.scale(1, 1);
+
+		if (this.#overlays.size !== 0) {
+			for (const overlay of this.#overlays.values()) {
+				if (overlay.show) {
+					this.#ctx.fillStyle = overlay.fill;
+					this.#ctx.fillRect(overlay.x, overlay.y, overlay.width, overlay.height);
+				}
+			}
+		}
 
 		if (this.#media.size !== 0) {
-			this.#ctx.scale(1, 1);
 
-			for (const [el, { x, y, width, height, type, text, font, fill, lineWidth, show }] of this.#media.entries()) {
-				if (show) {
+			for (const item of this.#media.values()) {
+				if (item.show) {
 					try {
-						switch (type) {
+						switch (item.type) {
 							case 'image':
-								this.#ctx.drawImage(el, x, y, width, height);
+								this.#ctx.drawImage(item.el, item.x, item.y, item.width, item.height);
 								break;
 
 							case 'text':
-								this.#ctx.font = font;
-								this.#ctx.fillStyle = fill;
-								this.#ctx.lineWidth = lineWidth;
-								this.#ctx.fillText(text, x, y);
+								this.#ctx.font = item.font;
+								this.#ctx.fillStyle = item.fill;
+								this.#ctx.lineWidth = item.lineWidth;
+								this.#ctx.fillText(item.text, item.x, item.y);
 								break;
 
 							default:
-								throw new TypeError(`Unknown type to render: "${type ?? 'unknown'}".`);
+								throw new TypeError(`Unknown type to render: "${item.type ?? 'unknown'}".`);
 						}
 					} catch (err) {
 						console.error(err);
