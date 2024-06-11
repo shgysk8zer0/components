@@ -4,46 +4,42 @@ import { WEBP as WEBP_MIME, PNG as PNG_MIME, JPEG as JPEG_MIME } from '@shgysk8z
 import { WEBP as WEBP_EXT, PNG as PNG_EXT, JPEG as JPEG_EXT } from '@shgysk8zer0/consts/exts.js';
 import { createImage, createElement } from '@shgysk8zer0/kazoo/elements.js';
 
-function showMedia(el) {
-	if (el.hidden){
+function getDimensions(el)  {
+	switch(el.tagName.toLowerCase()) {
+		case 'img':
+		case 'video':
+			return [el.width, el.height];
+
+		case 'svg':
+			return [el.width.baseVal.value, el.height.baseVal.value];
+
+		default:
+			return [NaN, NaN];
+	}
+}
+
+function showItem(item) {
+	if (item.el.hidden) {
 		return false;
-	} else if (! el.dataset.hasOwnProperty('media')) {
-		return true;
+	} else if (item.media instanceof MediaQueryList) {
+		return item.media.matches;
 	} else {
-		return matchMedia(el.dataset.media).matches;
+		return true;
 	}
 }
 
 function getType(el) {
-	switch (el.tagName) {
-		case 'IMG':
-		case 'VIDEO':
+	switch (el.tagName.toLowerCase()) {
+		case 'svg':
+			return 'svg';
+
+		case 'img':
+		case 'video':
 			return 'image';
 
 		default:
 			return 'text';
 	}
-}
-
-function getMediaInfo(el) {
-	const { x = 0, y = 0, fill = '#000000', font = '20px sans-serif', lineWidth = 1 } = el.dataset;
-	const type = getType(el);
-	const [width, height] = type === 'image' ? [el.width, el.height] : [NaN, NaN];
-	const text = type === 'text' ? el.textContent.trim() : '';
-
-	return Object.freeze({
-		x: Math.max(parseInt(x), 0),
-		y: Math.max(parseInt(y), 0),
-		width,
-		height,
-		type,
-		text,
-		fill,
-		font,
-		lineWidth: Math.max(parseInt(lineWidth), 1),
-		show: showMedia(el),
-		el,
-	});
 }
 
 const template = html`<div part="controls overlay" class="panel overlay absolute bottom full-width">
@@ -246,6 +242,9 @@ select.input {
 }
 
 @media (orientation: portrait) {
+	:host(:fullscreen) #opts {
+		margin-top: 65px;
+	}
 	.panel {
 		height: 96px;
 	}
@@ -320,6 +319,9 @@ class HTMLPhotoBoothElement extends HTMLElement {
 	/** @private {Map} */
 	#overlays;
 
+	/** @private {Map<Element,object>} */
+	#blobImages;
+
 	constructor() {
 		super();
 		this.#shadow = this.attachShadow({ mode: 'closed' });
@@ -343,6 +345,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 		this.#overlaySlot.hidden = true;
 		this.#overlays = new Map();
 		this.#overlaySlot.addEventListener('slotchange', () => this.refreshOverlays());
+		this.#blobImages = new Map();
 	}
 
 	connectedCallback() {
@@ -363,7 +366,8 @@ class HTMLPhotoBoothElement extends HTMLElement {
 			}
 		});
 
-		controls.querySelector('#capture').addEventListener('click', () => {
+		controls.querySelector('#capture').addEventListener('click', async () => {
+			this.dispatchEvent(new Event('beforecapture'));
 			if (this.shutter) {
 				this.#canvas.animate([
 					{ filter: 'none' },
@@ -374,10 +378,12 @@ class HTMLPhotoBoothElement extends HTMLElement {
 					easing: 'ease-in-out',
 				});
 			}
-			this.saveAs(`capture-${new Date().toISOString()}${this.ext}`).catch(alert);
+
+			await this.saveAs(`capture-${new Date().toISOString()}${this.ext}`);
+			this.dispatchEvent(new Event('aftercapture'));
 		});
 
-		controls.querySelector('#start').addEventListener('click', () => this.start().catch(alert));
+		controls.querySelector('#start').addEventListener('click', () => this.start());
 		controls.querySelector('#stop').addEventListener('click', () => this.stop());
 		controls.querySelector('#fullscreen').addEventListener('click', () => this.requestFullscreen());
 
@@ -406,7 +412,11 @@ class HTMLPhotoBoothElement extends HTMLElement {
 		controls.querySelector('#fullscreen').disabled = false;
 
 		if (navigator.share instanceof Function) {
-			controls.querySelector('#share').addEventListener('click', () => this.share());
+			controls.querySelector('#share').addEventListener('click', async () => {
+				this.dispatchEvent(new Event('beforecapture'));
+				await this.share();
+				this.dispatchEvent(new Event('aftercapture'));
+			});
 			controls.querySelector('#share').disabled = false;
 		} else {
 			controls.querySelector('#share').disabled = true;
@@ -420,6 +430,11 @@ class HTMLPhotoBoothElement extends HTMLElement {
 	disconnectedCallback() {
 		if (this.#controller instanceof AbortController && !this.#controller.signal.aborted) {
 			this.#controller.abort(`<${this.tagName}> was disconnected.`);
+		}
+
+		if (this.#blobImages.size !== 0) {
+			this.#blobImages.value().forEach(img => URL.revokeObjectURL(img.src));
+			this.#blobImages.clear();
 		}
 
 		this.#media.clear();
@@ -450,11 +465,11 @@ class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	get overlayItems() {
-		return [...this.#overlays.values()].filter(item => item.show);
+		return [...this.#overlays.values()].filter(item => showItem(item));
 	}
 
 	get mediaItems() {
-		return [...this.#media.values()].filter(item => item.show);
+		return [...this.#media.values()].filter(item => showItem(item));
 	}
 
 	get orientation() {
@@ -607,12 +622,12 @@ class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	refreshMedia() {
-		this.#media = new Map(this.#mediaSlot.assignedElements().map(el => [el, getMediaInfo(el)]));
+		this.#media = new Map(this.#mediaSlot.assignedElements().map(el => [el, this.#getMediaInfo(el)]));
 	}
 
 	refreshOverlays() {
 		this.#overlays = new Map(this.#overlaySlot.assignedNodes().map(el => {
-			const { x = 0, y = 0, height = 0, width = 0, fill = '#000000' } = el.dataset;
+			const { x = 0, y = 0, height = 0, width = 0, fill = '#000000', media } = el.dataset;
 
 			return [el, Object.freeze({
 				x: parseInt(x),
@@ -620,7 +635,8 @@ class HTMLPhotoBoothElement extends HTMLElement {
 				height: parseInt(height),
 				width: parseInt(width),
 				fill,
-				show: showMedia(el),
+				el,
+				media: typeof media === 'string' ? matchMedia(media) : null,
 			})];
 		}));
 	}
@@ -881,7 +897,7 @@ class HTMLPhotoBoothElement extends HTMLElement {
 
 		if (this.#overlays.size !== 0) {
 			for (const overlay of this.#overlays.values()) {
-				if (overlay.show) {
+				if (showItem(overlay)) {
 					this.#ctx.fillStyle = overlay.fill;
 					this.#ctx.fillRect(overlay.x, overlay.y, overlay.width, overlay.height);
 				}
@@ -889,13 +905,18 @@ class HTMLPhotoBoothElement extends HTMLElement {
 		}
 
 		if (this.#media.size !== 0) {
-
 			for (const item of this.#media.values()) {
-				if (item.show) {
+				if (showItem(item)) {
 					try {
 						switch (item.type) {
 							case 'image':
 								this.#ctx.drawImage(item.el, item.x, item.y, item.width, item.height);
+								break;
+
+							case 'svg':
+								if (this.#blobImages.has(item.el)) {
+									this.#ctx.drawImage(this.#blobImages.get(item.el), item.x, item.y, item.width, item.height);
+								}
 								break;
 
 							case 'text':
@@ -921,6 +942,35 @@ class HTMLPhotoBoothElement extends HTMLElement {
 		} else {
 			requestAnimationFrame(() => this.#renderFrame({ signal }));
 		}
+	}
+
+	#getMediaInfo(el) {
+		const { x = 0, y = 0, fill = '#000000', font = '20px sans-serif', lineWidth = 1, media } = el.dataset;
+		const type = getType(el);
+		const [width, height] = getDimensions(el);
+		const text = type === 'text' ? el.textContent.trim() : '';
+
+		if (type === 'svg' && ! this.#blobImages.has(el)) {
+			const blob = new Blob([el.outerHTML], { type: 'image/svg+xml' });
+			const img = new Image(width, height);
+			img.src = URL.createObjectURL(blob);
+			img.crossOrigin = 'anonymous';
+			img.decode().then(() => this.#blobImages.set(el, img));
+		}
+
+		return Object.freeze({
+			x: Math.max(parseInt(x), 0),
+			y: Math.max(parseInt(y), 0),
+			width,
+			height,
+			type,
+			text,
+			fill,
+			font,
+			lineWidth: Math.max(parseInt(lineWidth), 1),
+			media: typeof media === 'string' ? matchMedia(media) : null,
+			el,
+		});
 	}
 
 	static get observedAttributes() {
