@@ -6,7 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [[v0.2.13] - 2024-06-11
+## [v0.2.13] - 2024-06-13
+
+### Added
+- Add support for delay in `<photo-booth>`
+- Add wake/screen lock when `<photo-booth>` is active/on
+- Add static methods to create `<photo-booth>` from an object or fetching JSON
+
+### Changed
+- Refactor template for `<photo-booth>` to be just one template rather than multiple
+- Move settings button to controls panel in `<photo-booth>`
+
+## [v0.2.13] - 2024-06-11
 
 ### Added
 - Added support for mirroring camera in `<photo-booth>`
