@@ -3,9 +3,10 @@ import { css } from '@aegisjsproject/parsers/css.js';
 import { WEBP as WEBP_MIME, PNG as PNG_MIME, JPEG as JPEG_MIME } from '@shgysk8zer0/consts/mimes.js';
 import { WEBP as WEBP_EXT, PNG as PNG_EXT, JPEG as JPEG_EXT } from '@shgysk8zer0/consts/exts.js';
 import { createImage, createElement } from '@shgysk8zer0/kazoo/elements.js';
+import { getJSON } from '@shgysk8zer0/kazoo/http.js';
 
-function getDimensions(el)  {
-	switch(el.tagName.toLowerCase()) {
+function getDimensions(el) {
+	switch (el.tagName.toLowerCase()) {
 		case 'img':
 		case 'video':
 			return [el.width, el.height];
@@ -42,53 +43,15 @@ function getType(el) {
 	}
 }
 
-const template = html`<div part="controls overlay" class="panel overlay absolute bottom full-width">
-	<button type="button" id="start" class="btn when-inactive" data-action="start" title="Open Camera"  aria-label="Open Camera">
-		<slot name="start-icon">
-			<svg width="96" height="96" viewBox="0 0 16 16" fill="currentColor">
-				<path fill-rule="evenodd" d="M15.2 2.09L10 5.72V3c0-.55-.45-1-1-1H1c-.55 0-1 .45-1 1v9c0 .55.45 1 1 1h8c.55 0 1-.45 1-1V9.28l5.2 3.63c.33.23.8 0 .8-.41v-10c0-.41-.47-.64-.8-.41z"/>
-			</svg>
-		</slot>
-	</button>
-	<button type="button" id="fullscreen" class="btn when-active" part="btn fullscreen-btn" data-action="fullscreen" title="Enter Fullscreen" aria-label="Enter Fullscreen" disabled="">
-		<slot name="fullscreen-icon">
-			<svg width="84" height="96" viewBox="0 0 14 16" fill="currentColor">
-				<path fill-rule="evenodd" d="M13 10h1v3c0 .547-.453 1-1 1h-3v-1h3v-3zM1 10H0v3c0 .547.453 1 1 1h3v-1H1v-3zm0-7h3V2H1c-.547 0-1 .453-1 1v3h1V3zm1 1h10v8H2V4zm2 6h6V6H4v4zm6-8v1h3v3h1V3c0-.547-.453-1-1-1h-3z"/>
-			</svg>
-		</slot>
-	</button>
-	<button type="button" id="exit-fullscreen" class="btn when-active" part="btn exit-fullscreen-btn" data-action="exit-fullscreen" title="Leave Fullscreen" aria-label="Exit Fullscreen" disabled="">
-		<slot name="exit-fullscreen-icon">
-			<svg width="84" height="96" viewBox="0 0 14 16" fill="currentColor">
-				<path fill-rule="evenodd" d="M2 4H0V3h2V1h1v2c0 .547-.453 1-1 1zm0 8H0v1h2v2h1v-2c0-.547-.453-1-1-1zm9-2c0 .547-.453 1-1 1H4c-.547 0-1-.453-1-1V6c0-.547.453-1 1-1h6c.547 0 1 .453 1 1v4zM9 7H5v2h4V7zm2 6v2h1v-2h2v-1h-2c-.547 0-1 .453-1 1zm1-10V1h-1v2c0 .547.453 1 1 1h2V3h-2z"/>
-			</svg>
-		</slot>
-	</button>
-	<button type="button" id="share" class="btn when-active" part="btn share-btn" data-action="share" title="Share" aria-label="Share" accesskey="s" disabled="">
-		<slot name="share-icon">
-			<svg width="96" height="96" viewBox="0 0 16 16" fill="currentColor">
-				<path d="M5.969 7.969a2.969 2.969 0 1 1-5.938 0 2.969 2.969 0 1 1 5.938 0zm9.968 5a2.969 2.969 0 1 1-5.937 0 2.969 2.969 0 1 1 5.937 0zm0-10a2.969 2.969 0 1 1-5.937 0 2.969 2.969 0 1 1 5.937 0z" overflow="visible"/>
-				<path d="M12.625 2.156L2.562 7.031.75 7.938l1.812.906 10.032 5.062.906-1.812-8.22-4.156 8.219-4-.875-1.782z" overflow="visible"/>
-			</svg>
-		</slot>
-	</button>
-	<button type="button" id="capture" class="btn when-active" part="btn capture-btn" data-action="capture" title="Capture" aria-label="Capture" accesskey=" ">
-		<slot name="capture-icon">
-			<svg viewBox="0 0 2 2" fill="currentColor" height="96" width="96" fill="currentColor">
-				<circle cx="1" cy="1" r="1"></circle>
-			</svg>
-		</slot>
-	</button>
-	<button type="button" id="stop" class="btn when-active" part="btn stop-btn" data-action="stop" title="Close Camera" aria-label="Close Camera" accesskey="x">
-		<slot name="stop-icon">
-			<svg width="96" height="96" viewBox="0 0 12 16" fill="currentColor">
-				<path fill-rule="evenodd" d="M7.48 8l3.75 3.75-1.48 1.48L6 9.48l-3.75 3.75-1.48-1.48L4.52 8 .77 4.25l1.48-1.48L6 6.52l3.75-3.75 1.48 1.48L7.48 8z"/>
-			</svg>
-		</slot>
-	</button>
-</div>`;
+function normalhandler({ target }) {
+	this[target.name] = target.value;
+}
 
-const settingsTemplate = html`<details id="opts" class="absolute top full-width overlay" part="settings overlay">
+function checkboxHandler({ target }) {
+	this[target.name] = target.checked;
+}
+
+const template = html`<details id="opts" class="absolute top full-width overlay" part="settings overlay">
 	<summary title="Camera Settings" aria-label="Camera Settings">
 		<slot name="settings-icon">
 			<svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor" role="presentation">
@@ -126,6 +89,10 @@ const settingsTemplate = html`<details id="opts" class="absolute top full-width 
 				<input type="range" list="percents" name="quality" id="quality" class="settings-control input block" min="0" max="1" value="0.85" step="0.01" required="" />
 			</div>
 			<div class="form-group">
+				<label for="delay" class="input-label block">Capture Delay (seconds)</label>
+				<input type="number" id="delay" name="delay" class="settings-control input block" min="0" max="9" value="0" step="0.1" />
+			</div>
+			<div class="form-group">
 				<label for="shutter" class="input-label block">Shutter / Flash</label>
 				<input type="checkbox" id="shutter" name="shutter" class="settings-control" />
 			</div>
@@ -135,7 +102,68 @@ const settingsTemplate = html`<details id="opts" class="absolute top full-width 
 			</div>
 		</fieldset>
 	</form>
-</details>`;
+</details>
+<canvas id="canvas" part="preview" class="when-active canvas"></canvas>
+<div part="placeholder" id="placeholder" class="when-inactive placeholder">
+	<slot name="placeholder">
+		<p>Press the camera / start button on the bottom to open your camera and get started.</p>
+	</slot>
+</div>
+<div part="controls overlay" class="panel overlay absolute bottom full-width">
+	<button type="button" id="start" class="btn when-inactive" data-action="start" title="Open Camera"  aria-label="Open Camera">
+		<slot name="start-icon">
+			<svg width="96" height="96" viewBox="0 0 16 16" fill="currentColor">
+				<path fill-rule="evenodd" d="M15.2 2.09L10 5.72V3c0-.55-.45-1-1-1H1c-.55 0-1 .45-1 1v9c0 .55.45 1 1 1h8c.55 0 1-.45 1-1V9.28l5.2 3.63c.33.23.8 0 .8-.41v-10c0-.41-.47-.64-.8-.41z"/>
+			</svg>
+		</slot>
+	</button>
+	<button type="button" id="fullscreen" class="btn when-active" part="btn fullscreen-btn" data-action="fullscreen" title="Enter Fullscreen" aria-label="Enter Fullscreen" disabled="">
+		<slot name="fullscreen-icon">
+			<svg width="84" height="96" viewBox="0 0 14 16" fill="currentColor">
+				<path fill-rule="evenodd" d="M13 10h1v3c0 .547-.453 1-1 1h-3v-1h3v-3zM1 10H0v3c0 .547.453 1 1 1h3v-1H1v-3zm0-7h3V2H1c-.547 0-1 .453-1 1v3h1V3zm1 1h10v8H2V4zm2 6h6V6H4v4zm6-8v1h3v3h1V3c0-.547-.453-1-1-1h-3z"/>
+			</svg>
+		</slot>
+	</button>
+	<button type="button" id="exit-fullscreen" class="btn when-active" part="btn exit-fullscreen-btn" data-action="exit-fullscreen" title="Leave Fullscreen" aria-label="Exit Fullscreen" disabled="">
+		<slot name="exit-fullscreen-icon">
+			<svg width="84" height="96" viewBox="0 0 14 16" fill="currentColor">
+				<path fill-rule="evenodd" d="M2 4H0V3h2V1h1v2c0 .547-.453 1-1 1zm0 8H0v1h2v2h1v-2c0-.547-.453-1-1-1zm9-2c0 .547-.453 1-1 1H4c-.547 0-1-.453-1-1V6c0-.547.453-1 1-1h6c.547 0 1 .453 1 1v4zM9 7H5v2h4V7zm2 6v2h1v-2h2v-1h-2c-.547 0-1 .453-1 1zm1-10V1h-1v2c0 .547.453 1 1 1h2V3h-2z"/>
+			</svg>
+		</slot>
+	</button>
+	<button type="button" id="toggle-settings" class="btn" part="btn settings-btn" data-action="toggle-settings" title="Toggle Settings Menu" aria-label="Toggle Settings">
+		<slot name="settings-icon">
+			<svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor" role="presentation">
+				<path fill-rule="evenodd" d="M4 7H3V2h1v5zm-1 7h1v-3H3v3zm5 0h1V8H8v6zm5 0h1v-2h-1v2zm1-12h-1v6h1V2zM9 2H8v2h1V2zM5 8H2c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1zm5-3H7c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1zm5 4h-3c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1z"/>
+			</svg>
+		</slot>
+	</button>
+	<button type="button" id="capture" class="btn when-active" part="btn capture-btn" data-action="capture" title="Capture" aria-label="Capture" accesskey=" ">
+		<slot name="capture-icon">
+			<svg viewBox="0 0 2 2" fill="currentColor" height="96" width="96" fill="currentColor">
+				<circle cx="1" cy="1" r="1"></circle>
+			</svg>
+		</slot>
+	</button>
+	<button type="button" id="share" class="btn when-active" part="btn share-btn" data-action="share" title="Share" aria-label="Share" accesskey="s" disabled="">
+		<slot name="share-icon">
+			<svg width="96" height="96" viewBox="0 0 16 16" fill="currentColor">
+				<path d="M5.969 7.969a2.969 2.969 0 1 1-5.938 0 2.969 2.969 0 1 1 5.938 0zm9.968 5a2.969 2.969 0 1 1-5.937 0 2.969 2.969 0 1 1 5.937 0zm0-10a2.969 2.969 0 1 1-5.937 0 2.969 2.969 0 1 1 5.937 0z" overflow="visible"/>
+				<path d="M12.625 2.156L2.562 7.031.75 7.938l1.812.906 10.032 5.062.906-1.812-8.22-4.156 8.219-4-.875-1.782z" overflow="visible"/>
+			</svg>
+		</slot>
+	</button>
+	<button type="button" id="stop" class="btn when-active" part="btn stop-btn" data-action="stop" title="Close Camera" aria-label="Close Camera" accesskey="x">
+		<slot name="stop-icon">
+			<svg width="96" height="96" viewBox="0 0 12 16" fill="currentColor">
+				<path fill-rule="evenodd" d="M7.48 8l3.75 3.75-1.48 1.48L6 9.48l-3.75 3.75-1.48-1.48L4.52 8 .77 4.25l1.48-1.48L6 6.52l3.75-3.75 1.48 1.48L7.48 8z"/>
+			</svg>
+		</slot>
+	</button>
+</div>
+<slot name="media" id="media" hidden=""></slot>
+<slot name="overlay" id="overlay" hidden=""></slot>
+<video id="stream" hidden=""></video>`;
 
 const styles = css`:host {
 	box-sizing: border-box;
@@ -148,6 +176,16 @@ const styles = css`:host {
 
 summary {
 	cursor: pointer;
+}
+
+#opts summary {
+	list-style: none;
+	display: none;
+}
+
+#opts summary::marker,
+#opts summary::-webkit-details-marker {
+  display: none;
 }
 
 input[type="checkbox"] {
@@ -185,7 +223,7 @@ input[type="checkbox"] {
 
 .input {
 	width: 100%;
-	padding: 0.8em 1.4em;
+	padding: 0.5em 0.8em;
 	margin-block: 0.4em;
 	box-sizing: border-box;
 	font-size: inherit;
@@ -239,14 +277,21 @@ select.input {
 
 #opts {
 	height: 65px;
-	font-size: 32px;
+	font-size: 24px;
 	padding: 10px;
 	height: fit-content;
-	}
+}
 
 #opts[open] {
 	height: calc(100% - 128px);
 	overflow: auto;
+}
+
+#placeholder {
+	aspect-ratio: 16/9;
+	color: #fefefe;
+	padding-block: 60px;
+	font-size: 2em;
 }
 
 @media (any-pointer: fine) {
@@ -262,6 +307,10 @@ select.input {
 @media (orientation: portrait) {
 	:host(:fullscreen) canvas {
 		margin-top: 65px;
+	}
+
+	#placeholder {
+		aspect-ration: 9/16;
 	}
 
 	.panel {
@@ -315,9 +364,6 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	/** @private {HTMLSlotElement} */
 	#overlaySlot;
 
-	/** @private {boolean} */
-	#makesSense = false;
-
 	/** @private {HTMLCanvasElement} */
 	#canvas;
 
@@ -334,81 +380,74 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	#controller;
 
 	/** @private {MediaQueryList} */
-	#mediaQuery;
+	#mediaQuery = matchMedia('(orientation: landscape');
 
 	/** @private {Map} */
-	#media;
+	#media = new Map();
 
 	/** @private {Map} */
-	#overlays;
+	#overlays = new Map();
 
 	/** @private {Map<Element,object>} */
-	#blobImages;
+	#blobImages = new Map();
+
+	/** @private {WakeLockSentinel|null} */
+	#wakeLock = null;
 
 	constructor() {
 		super();
-		this.#shadow = this.attachShadow({ mode: 'closed' });
+		this.#shadow = this.attachShadow({ mode: 'open' });
 		this.#internals = this.attachInternals();
 		this.#internals.states.add('--inactive');
-		this.#canvas = document.createElement('canvas');
-		this.#video = document.createElement('video');
-		this.#mediaSlot = document.createElement('slot');
-		this.#ctx = this.#canvas.getContext('2d');
-		this.#canvas.part.add('preview');
-		this.#canvas.classList.add('canvas');
-		this.#video.hidden = true;
-		this.#stream = null;
-		this.#mediaSlot.hidden = true;
-		this.#mediaSlot.name = 'media';
-		this.#mediaQuery = matchMedia('(orientation: landscape');
-		this.#media = new Map();
-		this.#mediaSlot.addEventListener('slotchange', () => this.refreshMedia());
-		this.#overlaySlot = document.createElement('slot');
-		this.#overlaySlot.name = 'overlay';
-		this.#overlaySlot.hidden = true;
-		this.#overlays = new Map();
-		this.#overlaySlot.addEventListener('slotchange', () => this.refreshOverlays());
-		this.#blobImages = new Map();
 	}
 
 	connectedCallback() {
 		this.#controller = new AbortController();
+		const signal = this.#controller.signal;
+		const passive = true;
 
-		const controls = template.cloneNode(true);
-		const settings = settingsTemplate.cloneNode(true);
-		const normalhandler = ({ target }) => this[target.name] = target.value;
-		const checkboxHandler = ({ target }) => this[target.name] = target.checked;
+		this.#shadow.adoptedStyleSheets = [styles];
+		this.#shadow.replaceChildren(template.cloneNode(true));
+		this.#shadow.querySelector('form').addEventListener('submit', event => {
+			event.preventDefault();
+			event.target.closest('details').open = false;
+		});
 
-		settings.querySelectorAll('.settings-control[name]').forEach(control => {
+		this.#mediaSlot = this.#shadow.getElementById('media');
+		this.#overlaySlot = this.#shadow.getElementById('overlay');
+		this.#canvas = this.#shadow.getElementById('canvas');
+		this.#video = this.#shadow.getElementById('stream');
+		this.#ctx = this.#canvas.getContext('2d');
+		this.#mediaSlot.addEventListener('slotchange', this.refreshMedia.bind(this), { signal, passive });
+		this.#overlaySlot.addEventListener('slotchange', this.refreshOverlays.bind(this), { signal, passive });
+
+		this.#shadow.getElementById('toggle-settings').addEventListener('click', () => {
+			const opts = this.#shadow.getElementById('opts');
+			opts.open = !opts.open;
+		});
+
+		this.#shadow.querySelectorAll('.settings-control[name]').forEach(control => {
 			if (control.tagName === 'INPUT' && control.type === 'checkbox') {
 				control.checked = this[control.name];
-				control.addEventListener('change', checkboxHandler);
+				control.addEventListener('change', checkboxHandler.bind(this), { signal, passive });
 			} else {
 				control.value = this[control.name];
-				control.addEventListener('change', normalhandler);
+				control.addEventListener('change', normalhandler.bind(this), { signal, passive });
 			}
 		});
 
-		controls.querySelector('#capture').addEventListener('click', async () => {
+		this.#shadow.getElementById('capture').addEventListener('click', async () => {
+			await this.#waitForDelay();
 			this.dispatchEvent(new Event('beforecapture'));
-			if (this.shutter) {
-				this.#canvas.animate([
-					{ filter: 'none' },
-					{ filter: 'brightness(10)' },
-					{ filter: 'none' },
-				], {
-					duration: 200,
-					easing: 'ease-in-out',
-				});
-			}
-
+			await this.#snapShutter();
 			await this.saveAs(`capture-${new Date().toISOString()}${this.ext}`);
-			this.dispatchEvent(new Event('aftercapture'));
-		});
 
-		controls.querySelector('#start').addEventListener('click', () => this.start());
-		controls.querySelector('#stop').addEventListener('click', () => this.stop());
-		controls.querySelector('#fullscreen').addEventListener('click', () => this.requestFullscreen());
+			this.dispatchEvent(new Event('aftercapture'));
+		}, { signal, passive });
+
+		this.#shadow.getElementById('start').addEventListener('click', this.start.bind(this), { signal, passive });
+		this.#shadow.getElementById('stop').addEventListener('click', this.stop.bind(this), { signal, passive });
+		this.#shadow.getElementById('fullscreen').addEventListener('click', this.requestFullscreen.bind(this), { signal, passive });
 
 		this.ownerDocument.addEventListener('fullscreenchange', () => {
 			if (this.isSameNode(this.ownerDocument.fullscreenElement)) {
@@ -418,35 +457,36 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				this.#shadow.getElementById('exit-fullscreen').disabled = true;
 				this.#shadow.getElementById('fullscreen').disabled = false;
 			}
-		}, { signal: this.#controller.signal });
+		}, { signal, passive });
 
-		controls.querySelector('#exit-fullscreen').addEventListener('click', () => {
+		this.#shadow.getElementById('exit-fullscreen').addEventListener('click', () => {
 			if (this.ownerDocument.fullscreenElement.isSameNode(this)) {
 				this.ownerDocument.exitFullscreen();
 			}
-		});
+		}, { signal, passive });
 
 		this.#mediaQuery.addEventListener('change', () => {
-			if (this.active)  {
+			if (this.active) {
 				this.start();
 			}
-		});
+		}, { signal, passive });
 
-		controls.querySelector('#fullscreen').disabled = false;
+		this.#shadow.getElementById('fullscreen').disabled = false;
 
 		if (navigator.share instanceof Function) {
-			controls.querySelector('#share').addEventListener('click', async () => {
+			this.#shadow.getElementById('share').addEventListener('click', async () => {
+				await this.#waitForDelay();
 				this.dispatchEvent(new Event('beforecapture'));
+				await this.#snapShutter();
 				await this.share();
 				this.dispatchEvent(new Event('aftercapture'));
-			});
-			controls.querySelector('#share').disabled = false;
+			}, { signal, passive });
+
+			this.#shadow.getElementById('share').disabled = false;
 		} else {
-			controls.querySelector('#share').disabled = true;
+			this.#shadow.getElementById('share').disabled = true;
 		}
 
-		this.#shadow.replaceChildren(settings, this.#canvas, this.#video, this.#mediaSlot, this.#overlaySlot, controls);
-		this.#shadow.adoptedStyleSheets = [styles];
 		this.dispatchEvent(new Event('connected'));
 	}
 
@@ -475,15 +515,41 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
+	get abortSignal() {
+		if (this.#controller instanceof AbortController) {
+			return this.#controller.signal;
+		} else {
+			return undefined;
+		}
+	}
+
 	get active() {
 		return this.#stream instanceof MediaStream;
+	}
+
+	get delay() {
+		if (this.hasAttribute('delay')) {
+			return Math.min(Math.max(parseFloat(this.getAttribute('delay'), 0)), 9);
+		} else {
+			return 0;
+		}
+	}
+
+	set delay(val) {
+		if (typeof val === 'string') {
+			this.delay = parseFloat(val);
+		} else if (Number.isFinite(val) && val > 0) {
+			this.setAttribute('delay', val.toString());
+		} else {
+			this.removeAttribute('delay');
+		}
 	}
 
 	get mediaElements() {
 		return this.#mediaSlot.assignedElements();
 	}
 
-	get overalyElements() {
+	get overlayElements() {
 		return this.#overlaySlot.assignedElements();
 	}
 
@@ -498,7 +564,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	get orientation() {
 		const aspectRatio = this.aspectRatio;
 
-		if (Number.isNaN(aspectRatio)) {
+		if (!Number.isFinite(aspectRatio)) {
 			return 'unknown';
 		} else if (aspectRatio === 1) {
 			return 'square';
@@ -555,7 +621,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		return this.facingMode === 'user';
 	}
 
-	get mirror(){
+	get mirror() {
 		return this.hasAttribute('mirror');
 	}
 
@@ -678,6 +744,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 
 		await this.whenConnected;
+		this.#requestWakeLock();
 
 		this.#stream = await navigator.mediaDevices.getUserMedia({
 			video: {
@@ -719,6 +786,11 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			this.#internals.states.clear();
 			this.#internals.states.add('--inactive');
 			this.#shadow.getElementById('start').disabled = false;
+
+			if ('wakeLock' in navigator && this.#wakeLock instanceof globalThis.WakeLockSentinel && !this.#wakeLock.released) {
+				this.#wakeLock.release();
+				this.#wakeLock = null;
+			}
 
 			if (exitFullscreen && this.isSameNode(document.fullscreenElement)) {
 				this.ownerDocument.exitFullscreen();
@@ -768,7 +840,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	async addFont(fontFace) {
-		if (! (fontFace instanceof FontFace)) {
+		if (!(fontFace instanceof FontFace)) {
 			throw new TypeError('Not a FontFace and cannot be loaded.');
 		} else if (this.ownerDocument.fonts.status === 'loading') {
 			await this.ownerDocument.fonts.ready;
@@ -780,7 +852,8 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			try {
 				document.fonts.add(await fontFace.load());
 				return this.ownerDocument.fonts.has(fontFace);
-			} catch {
+			} catch (err) {
+				console.error(err);
 				return false;
 			}
 		}
@@ -990,7 +1063,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		const [width, height] = getDimensions(el);
 		const text = type === 'text' ? el.textContent.trim() : '';
 
-		if (type === 'svg' && ! this.#blobImages.has(el)) {
+		if (type === 'svg' && !this.#blobImages.has(el)) {
 			const blob = new Blob([el.outerHTML], { type: 'image/svg+xml' });
 			const img = new Image(width, height);
 			img.src = URL.createObjectURL(blob);
@@ -1013,8 +1086,130 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		});
 	}
 
+	async #requestWakeLock() {
+		if ('wakeLock' in navigator && !(this.#wakeLock instanceof globalThis.WakeLockSentinel && !this.#wakeLock.released)) {
+			try {
+				this.#wakeLock = await navigator.wakeLock.request('screen');
+
+				/*
+				* For some reason, a lock is sometimes granted but already released
+				*/
+				if (!this.#wakeLock.released) {
+					this.#wakeLock.addEventListener('release', () => {
+						if (this.ownerDocument.visibilityState !== 'visible' && this.active) {
+							this.ownerDocument.addEventListener('visibilitychange', () => {
+								this.#requestWakeLock();
+							}, { signal: this.#controller.signal, once: true });
+						}
+					});
+				}
+			} catch (err) {
+				console.error(err);
+			}
+		}
+	}
+
+	async #snapShutter() {
+		if (this.shutter) {
+			await this.#canvas.animate([
+				{ filter: 'none' },
+				{ filter: 'brightness(10)' },
+				{ filter: 'none' },
+			], {
+				duration: 200,
+				easing: 'ease-in-out',
+			}).finished;
+		}
+	}
+
+	async #waitForDelay() {
+		const delay = this.delay;
+
+		if (Number.isFinite(delay) && delay > 0) {
+			// @todo Add countdown overlay
+			const { height, width } = this;
+			const size = parseInt(Math.min(height, width) * 0.85);
+
+			const countdown = await this.addText(parseInt(delay).toString(), {
+				fill: '#fafafa',
+				font: `${size}px monospace`,
+				x: parseInt((width - size / 2) / 2),
+				y: parseInt((height + size / 2) / 2),
+			});
+
+			const timer = setInterval(() => {
+				let { text, ...attrs } = this.#media.get(countdown);
+				text = (parseInt(text) - 1).toString();
+				this.#media.set(countdown, { text, ...attrs });
+				countdown.textContent = text;
+			}, 1000);
+
+			await new Promise(resolve => setTimeout(() => {
+				clearInterval(timer);
+				countdown.remove();
+				requestAnimationFrame(resolve);
+			}, parseInt(delay * 1000)));
+		}
+	}
+
 	static get observedAttributes() {
 		return ['facingmode'];
+	}
+
+	static create({
+		images = [],
+		text = [],
+		overlays = [],
+		fonts = {},
+		type = 'image/jpeg',
+		quality = 0.9,
+		delay = 0,
+		shutter = true,
+		mirror = false,
+		frontFacing = true,
+	} = {}) {
+		const photoBooth = new HTMLPhotoBoothElement();
+		photoBooth.type = type;
+		photoBooth.quality = quality;
+		photoBooth.shutter = shutter;
+		photoBooth.frontFacing = frontFacing;
+		photoBooth.mirror = mirror;
+		photoBooth.delay = delay;
+
+		Object.entries(fonts).forEach(([name, { src, ...descriptors }]) => {
+			photoBooth.addFont(new FontFace(name, `url("${src}")`, descriptors)).catch(console.error);
+		});
+
+		images.forEach(({ src, height, width, x, y, media }) => {
+			photoBooth.addImage(src, { height, width, x, y, media });
+		});
+
+		text.forEach(({ string, x, y, fill, font, media }) => {
+			photoBooth.addText(string, { fill, x, y, font, media });
+		});
+
+		overlays.forEach(({ x, y, height, width, fill, media }) => {
+			photoBooth.addOverlay({ x, y, height, width, fill, media });
+		});
+
+		return photoBooth;
+	}
+
+	static async loadFromURL(url, opts) {
+		const {
+			images = [],
+			text = [],
+			overlays = [],
+			fonts = {},
+			type = 'image/jpeg',
+			quality = 0.9,
+			delay = 0,
+			shutter = true,
+			mirror = false,
+			frontFacing = true,
+		} = await getJSON(url, opts);
+
+		return HTMLPhotoBoothElement.create({ images, text, overlays, fonts, type, quality, delay, shutter, mirror, frontFacing });
 	}
 }
 
