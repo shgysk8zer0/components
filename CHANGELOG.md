@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.2.15] - 2024-06-17
+
+### Added
+- Add scaling & different resolution support for `<photo-boooth>`
+- Add `HTMLPhotoBoothElement` static properties (consts) from resolutions & supported image types/mime-types
+
+### Changed
+- Text for `<photo-booth>` now splits font-family, size, and weight (for scaling purposes)
+
 ## [v0.2.14] - 2024-06-13
 
 ### Added
