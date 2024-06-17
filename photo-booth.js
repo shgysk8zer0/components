@@ -85,6 +85,19 @@ const template = html`<details id="opts" class="absolute top full-width overlay"
 				</select>
 			</div>
 			<div class="form-group">
+				<label for="type" class="input-label block">Resolution</label>
+				<select id="type" name="resolution" class="settings-control input block" required="">
+					<option label="QVGA (320x240)" value="320x240"></option>
+					<option label="VGA (640x480)" value="640x480"></option>
+					<option label="FWVGA (854x480)" value="854x480"></option>
+					<option label="qHD (960x540)" value="960x540"></option>
+					<option label="HD (720p) (1280x720)" value="1280x720" selected></option>
+					<option label="Full HD (1080p) (1920x1080)" value="1920x1080"></option>
+					<option label="QHD (1440p) (2560x1440)" value="2560x1440"></option>
+					<option label="4K UHD (2160p) (3840x2160)" value="3840x2160"></option>
+				</select>
+			</div>
+			<div class="form-group">
 				<label for="quality" class="input-label block">Image Quality</label>
 				<input type="range" list="percents" name="quality" id="quality" class="settings-control input block" min="0" max="1" value="0.85" step="0.01" required="" />
 			</div>
@@ -99,6 +112,10 @@ const template = html`<details id="opts" class="absolute top full-width overlay"
 			<div class="form-group">
 				<label for="mirror" class="input-label block">Mirror</label>
 				<input type="checkbox" id="mirror" name="mirror" class="settings-control" />
+			</div>
+			<div class="form-group">
+				<label for="hide-items" class="input-label block">Hide Media/Overlays/Text</label>
+				<input type="checkbox" id="hide-items" name="hideItems" class="settings-control" />
 			</div>
 		</fieldset>
 	</form>
@@ -508,6 +525,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	attributeChangedCallback(name) {
 		switch (name) {
 			case 'facingmode':
+			case 'resolution':
 				if (this.active) {
 					this.start();
 				}
@@ -564,7 +582,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	get orientation() {
 		const aspectRatio = this.aspectRatio;
 
-		if (!Number.isFinite(aspectRatio)) {
+		if (! Number.isFinite(aspectRatio)) {
 			return 'unknown';
 		} else if (aspectRatio === 1) {
 			return 'square';
@@ -583,7 +601,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
-	get height() {
+	get nativeHeight() {
 		if (this.active) {
 			return this.#video.videoHeight;
 		} else {
@@ -591,11 +609,45 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
-	get width() {
+	get nativeWidth() {
 		if (this.active) {
 			return this.#video.videoWidth;
 		} else {
 			return NaN;
+		}
+	}
+
+	get resolution() {
+		if (this.hasAttribute('resolution')) {
+			return this.getAttribute('resolution');
+		} else {
+			return '1280x720';
+		}
+	}
+
+	set resolution(val) {
+		if (typeof val !== 'string' || ! val.includes('x')) {
+			throw new TypeError('Invalid resolution.');
+		} else if (val !== this.resolution) {
+			const [idealWidth, idealHeight] = val.split('x').map(n => parseInt(n));
+
+			if (! (Number.isSafeInteger(idealHeight) && Number.isSafeInteger(idealWidth) && idealHeight > 0 && idealWidth > 0)) {
+				throw new DOMException('Error parsing given resolution.');
+			} else {
+				this.setAttribute('resolution', `${idealWidth}x${idealHeight}`);
+			}
+		}
+	}
+
+	set idealWidth(val) {
+		if (typeof val === 'string') {
+			this.idealWidth = parseInt(val);
+		} else if (typeof val !== 'number' || !Number.isSafeInteger(val)) {
+			throw new TypeError('Ideal width must be an integer.');
+		} else if (val < 0) {
+			throw new TypeError('Ideal width must be a positive integer.');
+		} else {
+			this.setAttribute('idealwidth', val.toString());
 		}
 	}
 
@@ -621,6 +673,10 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		return this.facingMode === 'user';
 	}
 
+	set frontFacing(val) {
+		this.facingMode = val ? 'user' : 'environment';
+	}
+
 	get mirror() {
 		return this.hasAttribute('mirror');
 	}
@@ -629,8 +685,12 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		this.toggleAttribute('mirror', val);
 	}
 
-	set frontFacing(val) {
-		this.facingMode = val ? 'user' : 'environment';
+	get hideItems() {
+		return this.hasAttribute('hideitems');
+	}
+
+	set hideItems(val) {
+		this.toggleAttribute('hideitems', val);
 	}
 
 	get whenConnected() {
@@ -718,6 +778,25 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
+	get cameraConfig() {
+		const { resolution, facingMode } = this;
+		const [idealWidth, idealHeight] = resolution.split('x').map(n => parseInt(n));
+
+		return {
+			video: {
+				facingMode: facingMode,
+				width: {
+					min: 1,
+					ideal: idealWidth,
+				},
+				height: {
+					min: 1,
+					ideal: idealHeight,
+				},
+			}
+		};
+	}
+
 	refreshMedia() {
 		this.#media = new Map(this.#mediaSlot.assignedElements().map(el => [el, this.#getMediaInfo(el)]));
 	}
@@ -727,6 +806,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			const { x = 0, y = 0, height = 0, width = 0, fill = '#000000', media } = el.dataset;
 
 			return [el, Object.freeze({
+				type: 'overlay',
 				x: parseInt(x),
 				y: parseInt(y),
 				height: parseInt(height),
@@ -744,21 +824,9 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 
 		await this.whenConnected;
-		this.#requestWakeLock();
 
-		this.#stream = await navigator.mediaDevices.getUserMedia({
-			video: {
-				facingMode: this.facingMode,
-				width: {
-					min: 1,
-					ideal: 1280,
-				},
-				height: {
-					min: 1,
-					ideal: 720,
-				},
-			}
-		});
+		this.#stream = await navigator.mediaDevices.getUserMedia(this.cameraConfig);
+		this.#requestWakeLock();
 
 		this.#video.srcObject = this.#stream;
 
@@ -772,6 +840,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			this.#renderFrame({ signal });
 			this.#shadow.getElementById('start').disabled = true;
 			this.dispatchEvent(new Event('start'));
+			this.requestFullscreen();
 		}, { once: true });
 	}
 
@@ -800,6 +869,10 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 	clearMedia() {
 		this.mediaElements.forEach(el => el.remove());
+	}
+
+	clearOverlays() {
+		this.#overlaySlot.assignedElements().forEach(el => el.remove());
 	}
 
 	async addImage(src, {
@@ -840,7 +913,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	async addFont(fontFace) {
-		if (!(fontFace instanceof FontFace)) {
+		if (! (fontFace instanceof FontFace)) {
 			throw new TypeError('Not a FontFace and cannot be loaded.');
 		} else if (this.ownerDocument.fonts.status === 'loading') {
 			await this.ownerDocument.fonts.ready;
@@ -998,61 +1071,71 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
-	#renderFrame({ signal } = {}) {
+	#renderItem(item, ctx, scaleFactor = 1) {
+		if (showItem(item)) {
+			try {
+				switch (item.type) {
+					case 'overlay':
+						ctx.fillStyle = item.fill;
+						ctx.fillRect(Math.round(item.x * scaleFactor), Math.round(item.y * scaleFactor), Math.round(item.width * scaleFactor), Math.round(item.height * scaleFactor));
+						break;
+
+					case 'image':
+						ctx.drawImage(item.el, Math.round(item.x * scaleFactor), Math.round(item.y * scaleFactor), Math.round(item.width * scaleFactor), Math.round(item.height * scaleFactor));
+						break;
+
+					case 'svg':
+						if (this.#blobImages.has(item.el)) {
+							ctx.drawImage(this.#blobImages.get(item.el), Math.round(item.x * scaleFactor), Math.round(item.y * scaleFactor), Math.round(item.width * scaleFactor), Math.round(item.height * scaleFactor));
+						}
+						break;
+
+					case 'text':
+						ctx.font = item.font;
+						ctx.fillStyle = item.fill;
+						ctx.lineWidth = item.lineWidth;
+						ctx.fillText(item.text, Math.round(item.x * scaleFactor), Math.round(item.y * scaleFactor));
+						break;
+
+					default:
+						throw new TypeError(`Unknown type to render: "${item.type ?? 'unknown'}".`);
+				}
+			} catch (err) {
+				console.error(err);
+			}
+		}
+	}
+
+	#renderItems(items, ctx, scaleFactor = 1) {
+		if (items.size !== 0) {
+			for (const item of items.values()) {
+				this.#renderItem(item, ctx, scaleFactor);
+			}
+		}
+	}
+
+	#renderCamera(ctx) {
 		if (this.mirror) {
 			this.#ctx.save();
 			this.#ctx.scale(-1, 1);
-			this.#ctx.drawImage(this.#video, -this.#canvas.width, 0, this.#canvas.width, this.#canvas.height);
+			this.#ctx.drawImage(this.#video, -ctx.canvas.width, 0, ctx.canvas.width, ctx.canvas.height);
 			this.#ctx.restore();
 		} else {
-			this.#ctx.drawImage(this.#video, 0, 0, this.#canvas.width, this.#canvas.height);
+			this.#ctx.drawImage(this.#video, 0, 0, ctx.canvas.width, ctx.canvas.height);
 		}
+	}
 
-		if (this.#overlays.size !== 0) {
-			for (const overlay of this.#overlays.values()) {
-				if (showItem(overlay)) {
-					this.#ctx.fillStyle = overlay.fill;
-					this.#ctx.fillRect(overlay.x, overlay.y, overlay.width, overlay.height);
-				}
-			}
-		}
-
-		if (this.#media.size !== 0) {
-			for (const item of this.#media.values()) {
-				if (showItem(item)) {
-					try {
-						switch (item.type) {
-							case 'image':
-								this.#ctx.drawImage(item.el, item.x, item.y, item.width, item.height);
-								break;
-
-							case 'svg':
-								if (this.#blobImages.has(item.el)) {
-									this.#ctx.drawImage(this.#blobImages.get(item.el), item.x, item.y, item.width, item.height);
-								}
-								break;
-
-							case 'text':
-								this.#ctx.font = item.font;
-								this.#ctx.fillStyle = item.fill;
-								this.#ctx.lineWidth = item.lineWidth;
-								this.#ctx.fillText(item.text, item.x, item.y);
-								break;
-
-							default:
-								throw new TypeError(`Unknown type to render: "${item.type ?? 'unknown'}".`);
-						}
-					} catch (err) {
-						console.error(err);
-					}
-				}
-			}
-
-		}
-
+	#renderFrame({ signal } = {}) {
 		if (signal instanceof AbortSignal && signal.aborted) {
 			this.stop();
+		} else if (this.hideItems) {
+			this.#renderCamera(this.#ctx);
+			requestAnimationFrame(() => this.#renderFrame({ signal }));
 		} else {
+			const scaleFactor = this.aspectRatio > 1 ? this.nativeWidth / 1280 : this.nativeHeight / 1280;
+			this.#renderCamera(this.#ctx);
+			this.#renderItems(this.#overlays, this.#ctx, scaleFactor);
+			this.#renderItems(this.#media, this.#ctx, scaleFactor);
 			requestAnimationFrame(() => this.#renderFrame({ signal }));
 		}
 	}
@@ -1126,7 +1209,6 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		const delay = this.delay;
 
 		if (Number.isFinite(delay) && delay > 0) {
-			// @todo Add countdown overlay
 			const { height, width } = this;
 			const size = parseInt(Math.min(height, width) * 0.85);
 
@@ -1153,7 +1235,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	static get observedAttributes() {
-		return ['facingmode'];
+		return ['facingmode', 'resolution'];
 	}
 
 	static create({
@@ -1163,10 +1245,20 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		fonts = {},
 		type = 'image/jpeg',
 		quality = 0.9,
+		resolution = '1280x720',
 		delay = 0,
 		shutter = true,
 		mirror = false,
 		frontFacing = true,
+		hideItems = false,
+		classList = [],
+		id = null,
+		share: {
+			title: shareTitle,
+			text: shareText,
+			url: shareURL,
+		} = {},
+		...attrs
 	} = {}) {
 		const photoBooth = new HTMLPhotoBoothElement();
 		photoBooth.type = type;
@@ -1175,6 +1267,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		photoBooth.frontFacing = frontFacing;
 		photoBooth.mirror = mirror;
 		photoBooth.delay = delay;
+		photoBooth.resolution = resolution;
 
 		Object.entries(fonts).forEach(([name, { src, ...descriptors }]) => {
 			photoBooth.addFont(new FontFace(name, `url("${src}")`, descriptors)).catch(console.error);
@@ -1192,24 +1285,39 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			photoBooth.addOverlay({ x, y, height, width, fill, media });
 		});
 
+		Object.entries(attrs).forEach(([key, val]) => photoBooth.setAttribute(key, val));
+
+		if (typeof shareTitle === 'string') {
+			photoBooth.dataset.title = shareTitle;
+		}
+
+		if (typeof shareText === 'string') {
+			photoBooth.dataset.text = shareText;
+		}
+
+		if (typeof shareURL === 'string') {
+			photoBooth.dataset.url = shareURL;
+		} else if (shareURL instanceof URL) {
+			photoBooth.dataset.url = shareURL.href;
+		}
+
+		if (hideItems) {
+			photoBooth.hideItems = true;
+		}
+
+		if (Array.isArray(classList) && classList.length !== 0) {
+			photoBooth.classList.add(...classList);
+		}
+
+		if (typeof id === 'string') {
+			photoBooth.id = id;
+		}
+
 		return photoBooth;
 	}
 
 	static async loadFromURL(url, opts) {
-		const {
-			images = [],
-			text = [],
-			overlays = [],
-			fonts = {},
-			type = 'image/jpeg',
-			quality = 0.9,
-			delay = 0,
-			shutter = true,
-			mirror = false,
-			frontFacing = true,
-		} = await getJSON(url, opts);
-
-		return HTMLPhotoBoothElement.create({ images, text, overlays, fonts, type, quality, delay, shutter, mirror, frontFacing });
+		return HTMLPhotoBoothElement.create(await getJSON(url, opts));
 	}
 }
 
