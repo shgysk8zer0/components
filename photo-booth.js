@@ -5,6 +5,1043 @@ import { WEBP as WEBP_EXT, PNG as PNG_EXT, JPEG as JPEG_EXT } from '@shgysk8zer0
 import { createImage, createElement } from '@shgysk8zer0/kazoo/elements.js';
 import { getJSON } from '@shgysk8zer0/kazoo/http.js';
 
+export class HTMLPhotoBoothElement extends HTMLElement {
+	/** @private {ShadowRoot} */
+	#shadow;
+
+	/** @private {ElementInternals} */
+	#internals;
+
+	/** @private {HTMLSlotElement} */
+	#mediaSlot;
+
+	/** @private {HTMLSlotElement} */
+	#overlaySlot;
+
+	/** @private {HTMLCanvasElement} */
+	#canvas;
+
+	/** @private {HTMLVideoElement} */
+	#video;
+
+	/** @private {CanvasRenderingContext2D} */
+	#ctx;
+
+	/** @private {MediaStream|null} */
+	#stream;
+
+	/** @private {AbortController} */
+	#controller;
+
+	/** @private {MediaQueryList} */
+	#mediaQuery = matchMedia('(orientation: landscape');
+
+	/** @private {Map} */
+	#media = new Map();
+
+	/** @private {Map} */
+	#overlays = new Map();
+
+	/** @private {Map<Element,object>} */
+	#blobImages = new Map();
+
+	/** @private {WakeLockSentinel|null} */
+	#wakeLock = null;
+
+	constructor() {
+		super();
+		this.#shadow = this.attachShadow({ mode: 'open' });
+		this.#internals = this.attachInternals();
+		this.#internals.states.add('--inactive');
+	}
+
+	connectedCallback() {
+		this.#controller = new AbortController();
+		const signal = this.#controller.signal;
+		const passive = true;
+
+		this.#shadow.adoptedStyleSheets = [styles];
+		this.#shadow.replaceChildren(template.cloneNode(true));
+		this.#shadow.querySelector('form').addEventListener('submit', event => {
+			event.preventDefault();
+			event.target.closest('details').open = false;
+		});
+
+		this.#mediaSlot = this.#shadow.getElementById('media');
+		this.#overlaySlot = this.#shadow.getElementById('overlay');
+		this.#canvas = this.#shadow.getElementById('canvas');
+		this.#video = this.#shadow.getElementById('stream');
+		this.#ctx = this.#canvas.getContext('2d');
+		this.#mediaSlot.addEventListener('slotchange', this.refreshMedia.bind(this), { signal, passive });
+		this.#overlaySlot.addEventListener('slotchange', this.refreshOverlays.bind(this), { signal, passive });
+
+		this.#shadow.getElementById('toggle-settings').addEventListener('click', () => {
+			const opts = this.#shadow.getElementById('opts');
+			opts.open = !opts.open;
+		});
+
+		this.#shadow.querySelectorAll('.settings-control[name]').forEach(control => {
+			if (control.tagName === 'INPUT' && control.type === 'checkbox') {
+				control.checked = this[control.name];
+				control.addEventListener('change', checkboxHandler.bind(this), { signal, passive });
+			} else {
+				control.value = this[control.name];
+				control.addEventListener('change', normalhandler.bind(this), { signal, passive });
+			}
+		});
+
+		this.#shadow.getElementById('capture').addEventListener('click', async () => {
+			await this.#waitForDelay();
+			this.dispatchEvent(new Event('beforecapture'));
+			await this.#snapShutter();
+			await this.saveAs(`capture-${new Date().toISOString()}${this.ext}`);
+
+			this.dispatchEvent(new Event('aftercapture'));
+		}, { signal, passive });
+
+		this.#shadow.getElementById('start').addEventListener('click', this.start.bind(this), { signal, passive });
+		this.#shadow.getElementById('stop').addEventListener('click', this.stop.bind(this), { signal, passive });
+		this.#shadow.getElementById('fullscreen').addEventListener('click', this.requestFullscreen.bind(this), { signal, passive });
+
+		this.ownerDocument.addEventListener('fullscreenchange', () => {
+			if (this.isSameNode(this.ownerDocument.fullscreenElement)) {
+				this.#shadow.getElementById('exit-fullscreen').disabled = false;
+				this.#shadow.getElementById('fullscreen').disabled = true;
+			} else {
+				this.#shadow.getElementById('exit-fullscreen').disabled = true;
+				this.#shadow.getElementById('fullscreen').disabled = false;
+			}
+		}, { signal, passive });
+
+		this.#shadow.getElementById('exit-fullscreen').addEventListener('click', () => {
+			if (this.ownerDocument.fullscreenElement.isSameNode(this)) {
+				this.ownerDocument.exitFullscreen();
+			}
+		}, { signal, passive });
+
+		this.#mediaQuery.addEventListener('change', () => {
+			if (this.active) {
+				this.start();
+			}
+		}, { signal, passive });
+
+		this.#shadow.getElementById('fullscreen').disabled = false;
+
+		if (navigator.share instanceof Function) {
+			this.#shadow.getElementById('share').addEventListener('click', async () => {
+				await this.#waitForDelay();
+				this.dispatchEvent(new Event('beforecapture'));
+				await this.#snapShutter();
+				await this.share();
+				this.dispatchEvent(new Event('aftercapture'));
+			}, { signal, passive });
+
+			this.#shadow.getElementById('share').disabled = false;
+		} else {
+			this.#shadow.getElementById('share').disabled = true;
+		}
+
+		this.dispatchEvent(new Event('connected'));
+	}
+
+	disconnectedCallback() {
+		if (this.#controller instanceof AbortController && !this.#controller.signal.aborted) {
+			this.#controller.abort(`<${this.tagName}> was disconnected.`);
+		}
+
+		if (this.#blobImages.size !== 0) {
+			this.#blobImages.value().forEach(img => URL.revokeObjectURL(img.src));
+			this.#blobImages.clear();
+		}
+
+		this.#media.clear();
+		this.#overlays.clear();
+		this.stop();
+	}
+
+	attributeChangedCallback(name) {
+		switch (name) {
+			case 'facingmode':
+			case 'resolution':
+				if (this.active) {
+					this.start();
+				}
+				break;
+		}
+	}
+
+	get abortSignal() {
+		if (this.#controller instanceof AbortController) {
+			return this.#controller.signal;
+		} else {
+			return undefined;
+		}
+	}
+
+	get active() {
+		return this.#stream instanceof MediaStream;
+	}
+
+	get delay() {
+		if (this.hasAttribute('delay')) {
+			return Math.min(Math.max(parseFloat(this.getAttribute('delay'), 0)), 9);
+		} else {
+			return 0;
+		}
+	}
+
+	set delay(val) {
+		if (typeof val === 'string') {
+			this.delay = parseFloat(val);
+		} else if (Number.isFinite(val) && val > 0) {
+			this.setAttribute('delay', val.toString());
+		} else {
+			this.removeAttribute('delay');
+		}
+	}
+
+	get mediaElements() {
+		return this.#mediaSlot.assignedElements();
+	}
+
+	get overlayElements() {
+		return this.#overlaySlot.assignedElements();
+	}
+
+	get overlayItems() {
+		return [...this.#overlays.values()].filter(item => showItem(item));
+	}
+
+	get mediaItems() {
+		return [...this.#media.values()].filter(item => showItem(item));
+	}
+
+	get orientation() {
+		const aspectRatio = this.aspectRatio;
+
+		if (!Number.isFinite(aspectRatio)) {
+			return 'unknown';
+		} else if (aspectRatio === 1) {
+			return 'square';
+		} else if (aspectRatio > 1) {
+			return 'landscape';
+		} else {
+			return 'portrait';
+		}
+	}
+
+	get aspectRatio() {
+		if (this.active) {
+			return this.#video.videoWidth / this.#video.videoHeight;
+		} else {
+			return NaN;
+		}
+	}
+
+	get nativeHeight() {
+		if (this.active) {
+			return this.#video.videoHeight;
+		} else {
+			return NaN;
+		}
+	}
+
+	get nativeWidth() {
+		if (this.active) {
+			return this.#video.videoWidth;
+		} else {
+			return NaN;
+		}
+	}
+
+	get resolution() {
+		if (this.hasAttribute('resolution')) {
+			return this.getAttribute('resolution');
+		} else {
+			return HTMLPhotoBoothElement.DEFAULT_RESOLUTION;
+		}
+	}
+
+	set resolution(val) {
+		if (typeof val !== 'string' || !val.includes('x')) {
+			throw new TypeError('Invalid resolution.');
+		} else if (val !== this.resolution) {
+			const [idealWidth, idealHeight] = val.split('x').map(n => parseInt(n));
+
+			if (!(Number.isSafeInteger(idealHeight) && Number.isSafeInteger(idealWidth) && idealHeight > 0 && idealWidth > 0)) {
+				throw new DOMException('Error parsing given resolution.');
+			} else {
+				this.setAttribute('resolution', `${idealWidth}x${idealHeight}`);
+			}
+		}
+	}
+
+	get facingMode() {
+		if (this.hasAttribute('facingmode')) {
+			return this.getAttribute('facingmode');
+		} else {
+			return 'user';
+		}
+	}
+
+	set facingMode(val) {
+		if (typeof val !== 'string' || val.length === 0) {
+			this.removeAttribute('facingmode');
+		} else if (!['user', 'environment'].includes(val)) {
+			throw new TypeError(`Invalid option for facing mode: "${val}."`);
+		} else {
+			this.setAttribute('facingmode', val);
+		}
+	}
+
+	get frontFacing() {
+		return this.facingMode === 'user';
+	}
+
+	set frontFacing(val) {
+		this.facingMode = val ? 'user' : 'environment';
+	}
+
+	get mirror() {
+		return this.hasAttribute('mirror');
+	}
+
+	set mirror(val) {
+		this.toggleAttribute('mirror', val);
+	}
+
+	get hideItems() {
+		return this.hasAttribute('hideitems');
+	}
+
+	set hideItems(val) {
+		this.toggleAttribute('hideitems', val);
+	}
+
+	get whenConnected() {
+		const { promise, resolve } = Promise.withResolvers();
+
+		if (this.isConnected) {
+			resolve();
+		} else {
+			this.addEventListener('connected', () => resolve(), { once: true });
+		}
+
+		return promise;
+	}
+
+	get whenActive() {
+		const { resolve, promise } = Promise.withResolvers();
+
+		if (this.active) {
+			resolve();
+		} else {
+			this.addEventListener('start', () => resolve(), { once: true });
+		}
+
+		return promise;
+	}
+
+	get quality() {
+		if (this.hasAttribute('quality')) {
+			return Math.max(Math.min(parseFloat(this.getAttribute('quality')), 1), 0);
+		} else {
+			return 0.85;
+		}
+	}
+
+	get shutter() {
+		return this.hasAttribute('shutter');
+	}
+
+	set shutter(val) {
+		this.toggleAttribute('shutter', val);
+	}
+
+	set quality(val) {
+		if (typeof val === 'string') {
+			this.quality = parseFloat(val);
+		} else if (typeof val !== 'number' || Number.isNaN(val)) {
+			throw new TypeError('Quality must be a number.');
+		} else if (val < 0 || val > 1) {
+			throw new RangeError('Quality must be between 0 and 1.');
+		} else {
+			this.setAttribute('quality', val.toString());
+		}
+	}
+
+	get type() {
+		if (this.hasAttribute('type')) {
+			return this.getAttribute('type') ?? HTMLPhotoBoothElement.DEFAULT_TYPE;
+		} else {
+			return HTMLPhotoBoothElement.DEFAULT_TYPE;
+		}
+	}
+
+	set type(val) {
+		if (typeof val === 'string' && val.length !== 0) {
+			this.setAttribute('type', val);
+		} else {
+			this.removeAttribute('type');
+		}
+	}
+
+	get ext() {
+		switch (this.type) {
+			case PNG_MIME:
+				return PNG_EXT[0];
+
+			case WEBP_MIME:
+				return WEBP_EXT[0];
+
+			case JPEG_MIME:
+				// ['.jpeg', '.jpg']
+				return JPEG_EXT[1];
+
+			default:
+				return HTMLPhotoBoothElement.types.find(type => type.mime === HTMLPhotoBoothElement.DEFAULT_TYPE);
+		}
+	}
+
+	get parsedResolution() {
+		const [width, height] = this.resolution.split('x').map(n => parseInt(n));
+		return { width, height };
+	}
+
+	get cameraConfig() {
+		const { width, height } = this.parsedResolution;
+
+		return {
+			video: {
+				facingMode: this.facingMode,
+				width: {
+					min: 1,
+					ideal: width,
+				},
+				height: {
+					min: 1,
+					ideal: height,
+				},
+			}
+		};
+	}
+
+	refreshMedia() {
+		this.#media = new Map(this.#mediaSlot.assignedElements().map(el => [el, this.#getMediaInfo(el)]));
+	}
+
+	refreshOverlays() {
+		this.#overlays = new Map(this.#overlaySlot.assignedNodes().map(el => {
+			const { x = 0, y = 0, height = 0, width = 0, fill = '#000000', media } = el.dataset;
+
+			return [el, Object.freeze({
+				type: 'overlay',
+				x: parseInt(x),
+				y: parseInt(y),
+				height: parseInt(height),
+				width: parseInt(width),
+				fill,
+				el,
+				media: typeof media === 'string' ? matchMedia(media) : null,
+			})];
+		}));
+	}
+
+	async start({ signal } = {}) {
+		if (this.active) {
+			this.stop({ exitFullscreen: false });
+		}
+
+		await this.whenConnected;
+
+		this.#stream = await navigator.mediaDevices.getUserMedia(this.cameraConfig);
+		this.#requestWakeLock();
+
+		this.#video.srcObject = this.#stream;
+
+		this.#video.addEventListener('canplay', () => {
+			this.#video.play();
+			this.#ctx.canvas.height = this.#video.videoHeight;
+			this.#ctx.canvas.width = this.#video.videoWidth;
+			this.#internals.states.delete('--inactive');
+			this.#internals.states.add('--active');
+			this.#internals.states.add('--' + this.orientation);
+			this.#renderFrame({ signal });
+			this.#shadow.getElementById('start').disabled = true;
+			this.dispatchEvent(new Event('start'));
+			this.requestFullscreen();
+		}, { once: true });
+	}
+
+	stop({ exitFullscreen = true } = {}) {
+		if (this.#stream instanceof MediaStream) {
+			this.#video.pause();
+			this.#stream.getTracks().forEach(track => track.stop());
+			this.#stream = null;
+			this.#ctx.reset();
+			this.#stream = null;
+			this.dispatchEvent(new Event('stop'));
+			this.#internals.states.clear();
+			this.#internals.states.add('--inactive');
+			this.#shadow.getElementById('start').disabled = false;
+
+			if ('wakeLock' in navigator && this.#wakeLock instanceof globalThis.WakeLockSentinel && !this.#wakeLock.released) {
+				this.#wakeLock.release();
+				this.#wakeLock = null;
+			}
+
+			if (exitFullscreen && this.isSameNode(document.fullscreenElement)) {
+				this.ownerDocument.exitFullscreen();
+			}
+		}
+	}
+
+	clearMedia() {
+		this.mediaElements.forEach(el => el.remove());
+	}
+
+	clearOverlays() {
+		this.#overlaySlot.assignedElements().forEach(el => el.remove());
+	}
+
+	async addImage(src, {
+		x,
+		y,
+		width,
+		height,
+		media,
+		alt = 'Canvas image',
+		crossOrigin = 'anonymous',
+		referrerPolicy = 'no-referrer',
+	} = {}) {
+		const img = createImage(src, {
+			width, height, alt, crossOrigin, referrerPolicy,
+			dataset: { x, y },
+			slot: 'media',
+			loading: 'eager',
+		});
+
+		await img.decode();
+
+		if (typeof width !== 'number') {
+			img.width = img.naturalWidth;
+		}
+
+		if (typeof height !== 'number') {
+			img.height = img.naturalHeight;
+		}
+
+		if (typeof media === 'string') {
+			img.dataset.media = media;
+		} else if (media instanceof MediaQueryList) {
+			img.dataset.media = media.media;
+		}
+
+		this.append(img);
+		return img;
+	}
+
+	async addFont(fontFace) {
+		if (!(fontFace instanceof FontFace)) {
+			throw new TypeError('Not a FontFace and cannot be loaded.');
+		} else if (this.ownerDocument.fonts.status === 'loading') {
+			await this.ownerDocument.fonts.ready;
+		}
+
+		if (this.ownerDocument.fonts.has(fontFace)) {
+			return true;
+		} else {
+			try {
+				document.fonts.add(await fontFace.load());
+				return this.ownerDocument.fonts.has(fontFace);
+			} catch (err) {
+				console.error(err);
+				return false;
+			}
+		}
+	}
+
+	async addText(text, {
+		fill = '#000000',
+		fontFamily = 'sans-serif',
+		fontWeight = 'normal',
+		fontSize = 20,
+		x,
+		y,
+		media,
+	} = {}) {
+		const el = createElement('span', {
+			text,
+			dataset: { fill, fontFamily, fontWeight, fontSize, x, y },
+			slot: 'media',
+		});
+
+		if (typeof media === 'string') {
+			el.dataset.media = media;
+		} else if (media instanceof MediaQueryList) {
+			el.dataset.media = media.media;
+		}
+
+		this.append(el);
+		return el;
+	}
+
+	async addOverlay({
+		x = 0,
+		y = 0,
+		height = 0,
+		width = 0,
+		fill = '#000000',
+	}) {
+		const overlay = this.ownerDocument.createElement('div');
+		overlay.slot = 'overlay';
+		overlay.dataset.x = x.toString();
+		overlay.dataset.y = y.toString();
+		overlay.dataset.width = width.toString();
+		overlay.dataset.height = height.toString();
+		overlay.dataset.fill = fill.toString();
+		this.append(overlay);
+
+		return overlay;
+	}
+
+	async toFile(filename) {
+		if (typeof filename !== 'string' || filename.length === 0) {
+			throw new TypeError('Filename must be a non-empty string.');
+		} else {
+			const blob = await this.toBlob();
+			return new File([await blob.arrayBuffer()], filename, { type: blob.type });
+		}
+	}
+
+	async toBlob() {
+		const { promise, resolve, reject } = Promise.withResolvers();
+
+		this.whenConnected.then(() => {
+			try {
+				const oldMirror = this.mirror;
+				this.mirror = false;
+				this.#renderFrame();
+				this.#canvas.toBlob(resolve, this.type, this.quality);
+				this.mirror = oldMirror;
+			} catch (err) {
+				reject(err);
+			}
+		});
+
+		return await promise;
+	}
+
+	async toBlobURL() {
+		return URL.createObjectURL(await this.toBlob());
+	}
+
+	async toDataURL() {
+		const { promise, resolve, reject } = Promise.withResolvers();
+
+		this.whenConnected.then(() => {
+			try {
+				resolve(this.#canvas.toDataURL(this.type, this.quality));
+			} catch (err) {
+				reject(err);
+			}
+		});
+
+		return await promise;
+	}
+
+	async toImage({ alt = 'Captured image', height, width, classList } = {}) {
+		const img = document.createElement('img');
+		img.src = await this.toDataURL();
+		img.alt = alt;
+
+		if (typeof height === 'number') {
+			img.height = height;
+		}
+
+		if (typeof width === 'number') {
+			img.width = width;
+		}
+
+		if (Array.isArray(classList)) {
+			img.classList.add(...classList);
+		}
+
+		await img.decode();
+		return img;
+	}
+
+	async share() {
+		if (navigator.share instanceof Function) {
+			const { title, text, url } = this.dataset;
+
+			return await navigator.share({
+				title,
+				text,
+				url: typeof url === 'string' ? new URL(url, location.href).href : undefined,
+				files: [await this.toFile('capture' + this.ext)]
+			});
+		} else {
+			return false;
+		}
+	}
+
+	async saveAs(filename) {
+		if (this.active) {
+			const a = document.createElement('a');
+			a.href = await this.toBlobURL();
+			a.download = filename;
+			a.hidden = true;
+			this.ownerDocument.body.append(a);
+
+			setTimeout(() => {
+				URL.revokeObjectURL(a.href);
+				a.remove();
+			}, 200);
+
+			a.click();
+		}
+	}
+
+	#renderItem(item, ctx) {
+		if (showItem(item)) {
+			try {
+				switch (item.type) {
+					case 'overlay':
+						ctx.fillStyle = item.fill;
+						ctx.fillRect(item.x, item.y, item.width, item.height);
+						break;
+
+					case 'image':
+						ctx.drawImage(item.el, item.x, item.y, item.width, item.height);
+						break;
+
+					case 'svg':
+						if (this.#blobImages.has(item.el)) {
+							ctx.drawImage(this.#blobImages.get(item.el), item.x, item.y, item.width, item.height);
+						}
+						break;
+
+					case 'text':
+						ctx.font = `${item.fontWeight} ${item.fontSize}px ${item.fontFamily}`;
+						ctx.fillStyle = item.fill;
+						ctx.lineWidth = item.lineWidth;
+						ctx.fillText(item.text, item.x, item.y);
+						break;
+
+					default:
+						throw new TypeError(`Unknown type to render: "${item.type ?? 'unknown'}".`);
+				}
+			} catch (err) {
+				console.error(err);
+			}
+		}
+	}
+
+	#renderItems(items, ctx) {
+		if (items.size !== 0) {
+			for (const item of items.values()) {
+				this.#renderItem(item, ctx);
+			}
+		}
+	}
+
+	#renderCamera(ctx) {
+		if (this.mirror) {
+			this.#ctx.save();
+			this.#ctx.scale(-1, 1);
+			this.#ctx.drawImage(this.#video, -ctx.canvas.width, 0, ctx.canvas.width, ctx.canvas.height);
+			this.#ctx.restore();
+		} else {
+			this.#ctx.drawImage(this.#video, 0, 0, ctx.canvas.width, ctx.canvas.height);
+		}
+	}
+
+	#renderFrame({ signal } = {}) {
+		if (signal instanceof AbortSignal && signal.aborted) {
+			this.stop();
+		} else if (this.hideItems) {
+			this.#renderCamera(this.#ctx);
+			requestAnimationFrame(() => this.#renderFrame({ signal }));
+		} else {
+			const [width, height] = this.aspectRatio > 1 ? [1280, 720] : [720, 1280];
+			this.#renderCamera(this.#ctx);
+			this.#ctx.save();
+			this.#ctx.scale(this.#video.videoWidth / width, this.#video.videoHeight / height);
+			this.#renderItems(this.#overlays, this.#ctx);
+			this.#renderItems(this.#media, this.#ctx);
+			this.#ctx.restore();
+			requestAnimationFrame(() => this.#renderFrame({ signal }));
+		}
+	}
+
+	#getMediaInfo(el) {
+		const { x = 0, y = 0, fill = '#000000', fontFamily = 'sans-serif', fontWeight = 'normal', fontSize = 20, lineWidth = 1, media } = el.dataset;
+		const type = getType(el);
+		const [width, height] = getDimensions(el);
+		const text = type === 'text' ? el.textContent.trim() : '';
+
+		if (type === 'svg' && !this.#blobImages.has(el)) {
+			const blob = new Blob([el.outerHTML], { type: 'image/svg+xml' });
+			const img = new Image(width, height);
+			img.src = URL.createObjectURL(blob);
+			img.crossOrigin = 'anonymous';
+			img.decode().then(() => this.#blobImages.set(el, img));
+		}
+
+		return Object.freeze({
+			x: Math.max(parseInt(x), 0),
+			y: Math.max(parseInt(y), 0),
+			width,
+			height,
+			type,
+			text,
+			fill,
+			fontWeight,
+			fontSize,
+			fontFamily,
+			lineWidth: Math.max(parseInt(lineWidth), 1),
+			media: typeof media === 'string' ? matchMedia(media) : null,
+			el,
+		});
+	}
+
+	async #requestWakeLock() {
+		if ('wakeLock' in navigator && !(this.#wakeLock instanceof globalThis.WakeLockSentinel && !this.#wakeLock.released)) {
+			try {
+				this.#wakeLock = await navigator.wakeLock.request('screen');
+
+				/*
+				* For some reason, a lock is sometimes granted but already released
+				*/
+				if (!this.#wakeLock.released) {
+					this.#wakeLock.addEventListener('release', () => {
+						if (this.ownerDocument.visibilityState !== 'visible' && this.active) {
+							this.ownerDocument.addEventListener('visibilitychange', () => {
+								this.#requestWakeLock();
+							}, { signal: this.#controller.signal, once: true });
+						}
+					});
+				}
+			} catch (err) {
+				console.error(err);
+			}
+		}
+	}
+
+	async #snapShutter() {
+		if (this.shutter) {
+			await this.#canvas.animate([
+				{ filter: 'none' },
+				{ filter: 'brightness(10)' },
+				{ filter: 'none' },
+			], {
+				duration: 200,
+				easing: 'ease-in-out',
+			}).finished;
+		}
+	}
+
+	async #waitForDelay() {
+		const delay = this.delay;
+
+		if (Number.isFinite(delay) && delay > 0) {
+			const [size, width, height] = this.aspectRatio > 1
+				? [612, 1280, 720]
+				: [612, 720, 1280];
+
+			const countdown = await this.addText(parseInt(delay).toString(), {
+				fill: '#fafafa',
+				fontFamily: 'monospace',
+				fontSize: size,
+				x: parseInt((width - size / 2) / 2),
+				y: parseInt((height + size / 2) / 2),
+			});
+
+			const timer = setInterval(() => {
+				let { text, ...attrs } = this.#media.get(countdown);
+				text = (parseInt(text) - 1).toString();
+				this.#media.set(countdown, { text, ...attrs });
+				countdown.textContent = text;
+			}, 1000);
+
+			await new Promise(resolve => setTimeout(() => {
+				clearInterval(timer);
+				countdown.remove();
+				requestAnimationFrame(resolve);
+			}, parseInt(delay * 1000)));
+		}
+	}
+
+	static get observedAttributes() {
+		return ['facingmode', 'resolution'];
+	}
+
+	static get resolutions() {
+		const { QVGA, VGA, FWVGA, qHD, HD, FULL_HD, QHD, UHD } = HTMLPhotoBoothElement;
+
+		return [
+			{ label: 'QVGA', resolution: QVGA },
+			{ label: 'VGA', resolution: VGA },
+			{ label: 'FWVGA', resolution: FWVGA },
+			{ label: 'qHD', resolution: qHD },
+			{ label: 'HD (720P)', resolution: HD },
+			{ label: 'Full HD (1080P)', resolution: FULL_HD },
+			{ label: 'QHD (1440P)', resolution: QHD },
+			{ label: '4K UHD (2160P)', resolution: UHD },
+		];
+	}
+
+	static get types() {
+		return [{
+			label: 'JPEG',
+			ext: JPEG_EXT,
+			mime: JPEG_MIME,
+		},{
+			label: 'PNG',
+			ext: PNG_EXT,
+			mime: PNG_MIME,
+		}, {
+			label: 'WebP',
+			ext: WEBP_EXT,
+			mime: WEBP_MIME,
+		}];
+	}
+
+	static get JPEG() {
+		return JPEG_MIME;
+	}
+
+	static get PNG() {
+		return PNG_MIME;
+	}
+
+	static get WebP() {
+		return WEBP_MIME;
+	}
+
+	static get DEFAULT_TYPE() {
+		return this.JPEG;
+	}
+
+	static get QVGA() {
+		return '320x240';
+	}
+
+	static get VGA() {
+		return '640x480';
+	}
+
+	static get FWVGA() {
+		return '854x480';
+	}
+
+	static get qHD() {
+		return '960x540';
+	}
+
+	static get HD() {
+		return '1280x720';
+	}
+
+	static get FULL_HD() {
+		return '1920x1080';
+	}
+	static get QHD() {
+		return '2560x1440';
+	}
+
+	static get UHD() {
+		return '3840x2160';
+	}
+
+	static get DEFAULT_RESOLUTION() {
+		return HTMLPhotoBoothElement.HD;
+	}
+
+	static create({
+		images = [],
+		text = [],
+		overlays = [],
+		fonts = {},
+		type = HTMLPhotoBoothElement.DEFAULT_TYPE,
+		quality = 0.9,
+		resolution = HTMLPhotoBoothElement.DEFAULT_RESOLUTION,
+		delay = 0,
+		shutter = true,
+		mirror = false,
+		frontFacing = true,
+		hideItems = false,
+		classList = [],
+		id = null,
+		share: {
+			title: shareTitle,
+			text: shareText,
+			url: shareURL,
+		} = {},
+		...attrs
+	} = {}) {
+		const photoBooth = new HTMLPhotoBoothElement();
+		photoBooth.type = type;
+		photoBooth.quality = quality;
+		photoBooth.shutter = shutter;
+		photoBooth.frontFacing = frontFacing;
+		photoBooth.mirror = mirror;
+		photoBooth.delay = delay;
+		photoBooth.resolution = resolution;
+
+		Object.entries(fonts).forEach(([name, { src, ...descriptors }]) => {
+			photoBooth.addFont(new FontFace(name, `url("${src}")`, descriptors)).catch(console.error);
+		});
+
+		images.forEach(({ src, height, width, x, y, media }) => {
+			photoBooth.addImage(src, { height, width, x, y, media });
+		});
+
+		text.forEach(({ string, x, y, fill, fontSize, fontWeight, fontFamily, media }) => {
+			photoBooth.addText(string, { fill, x, y, fontSize, fontWeight, fontFamily, media });
+		});
+
+		overlays.forEach(({ x, y, height, width, fill, media }) => {
+			photoBooth.addOverlay({ x, y, height, width, fill, media });
+		});
+
+		Object.entries(attrs).forEach(([key, val]) => photoBooth.setAttribute(key, val));
+
+		if (typeof shareTitle === 'string') {
+			photoBooth.dataset.title = shareTitle;
+		}
+
+		if (typeof shareText === 'string') {
+			photoBooth.dataset.text = shareText;
+		}
+
+		if (typeof shareURL === 'string') {
+			photoBooth.dataset.url = shareURL;
+		} else if (shareURL instanceof URL) {
+			photoBooth.dataset.url = shareURL.href;
+		}
+
+		if (hideItems) {
+			photoBooth.hideItems = true;
+		}
+
+		if (Array.isArray(classList) && classList.length !== 0) {
+			photoBooth.classList.add(...classList);
+		}
+
+		if (typeof id === 'string') {
+			photoBooth.id = id;
+		}
+
+		return photoBooth;
+	}
+
+	static async loadFromURL(url, opts) {
+		return HTMLPhotoBoothElement.create(await getJSON(url, opts));
+	}
+}
+
 function getDimensions(el) {
 	switch (el.tagName.toLowerCase()) {
 		case 'img':
@@ -78,10 +1115,16 @@ const template = html`<details id="opts" class="absolute top full-width overlay"
 			</div>
 			<div class="form-group">
 				<label for="type" class="input-label block">Output Format</label>
-				<select id="type" name="type" class="settings-control input block" required="">
-					<option label="JPEG" value="image/jpeg" selected=""></option>
-					<option label="PNG" value="image/png"></option>
-					<option label="WebP" value="image/webp"></option>
+				<select id="type" name="type" class="settings-control input block" required="">${HTMLPhotoBoothElement.types.map(({ label, mime }) => `
+					<option label="${label}" value="${mime}"></option>
+				`).join('')}
+				</select>
+			</div>
+			<div class="form-group">
+				<label for="type" class="input-label block">Resolution</label>
+				<select id="type" name="resolution" class="settings-control input block" required="">${HTMLPhotoBoothElement.resolutions.map(({label, resolution}) => `
+					<option label="${label} (${resolution})"value="${resolution}"></option>
+				`).join('')}
 				</select>
 			</div>
 			<div class="form-group">
@@ -99,6 +1142,10 @@ const template = html`<details id="opts" class="absolute top full-width overlay"
 			<div class="form-group">
 				<label for="mirror" class="input-label block">Mirror</label>
 				<input type="checkbox" id="mirror" name="mirror" class="settings-control" />
+			</div>
+			<div class="form-group">
+				<label for="hide-items" class="input-label block">Hide Media/Overlays/Text</label>
+				<input type="checkbox" id="hide-items" name="hideItems" class="settings-control" />
 			</div>
 		</fieldset>
 	</form>
@@ -350,867 +1397,5 @@ select.input {
 :host(:state(--portrait)) .canvas {
 	aspect-ratio: 9/16;
 }`;
-
-export class HTMLPhotoBoothElement extends HTMLElement {
-	/** @private {ShadowRoot} */
-	#shadow;
-
-	/** @private {ElementInternals} */
-	#internals;
-
-	/** @private {HTMLSlotElement} */
-	#mediaSlot;
-
-	/** @private {HTMLSlotElement} */
-	#overlaySlot;
-
-	/** @private {HTMLCanvasElement} */
-	#canvas;
-
-	/** @private {HTMLVideoElement} */
-	#video;
-
-	/** @private {CanvasRenderingContext2D} */
-	#ctx;
-
-	/** @private {MediaStream|null} */
-	#stream;
-
-	/** @private {AbortController} */
-	#controller;
-
-	/** @private {MediaQueryList} */
-	#mediaQuery = matchMedia('(orientation: landscape');
-
-	/** @private {Map} */
-	#media = new Map();
-
-	/** @private {Map} */
-	#overlays = new Map();
-
-	/** @private {Map<Element,object>} */
-	#blobImages = new Map();
-
-	/** @private {WakeLockSentinel|null} */
-	#wakeLock = null;
-
-	constructor() {
-		super();
-		this.#shadow = this.attachShadow({ mode: 'open' });
-		this.#internals = this.attachInternals();
-		this.#internals.states.add('--inactive');
-	}
-
-	connectedCallback() {
-		this.#controller = new AbortController();
-		const signal = this.#controller.signal;
-		const passive = true;
-
-		this.#shadow.adoptedStyleSheets = [styles];
-		this.#shadow.replaceChildren(template.cloneNode(true));
-		this.#shadow.querySelector('form').addEventListener('submit', event => {
-			event.preventDefault();
-			event.target.closest('details').open = false;
-		});
-
-		this.#mediaSlot = this.#shadow.getElementById('media');
-		this.#overlaySlot = this.#shadow.getElementById('overlay');
-		this.#canvas = this.#shadow.getElementById('canvas');
-		this.#video = this.#shadow.getElementById('stream');
-		this.#ctx = this.#canvas.getContext('2d');
-		this.#mediaSlot.addEventListener('slotchange', this.refreshMedia.bind(this), { signal, passive });
-		this.#overlaySlot.addEventListener('slotchange', this.refreshOverlays.bind(this), { signal, passive });
-
-		this.#shadow.getElementById('toggle-settings').addEventListener('click', () => {
-			const opts = this.#shadow.getElementById('opts');
-			opts.open = !opts.open;
-		});
-
-		this.#shadow.querySelectorAll('.settings-control[name]').forEach(control => {
-			if (control.tagName === 'INPUT' && control.type === 'checkbox') {
-				control.checked = this[control.name];
-				control.addEventListener('change', checkboxHandler.bind(this), { signal, passive });
-			} else {
-				control.value = this[control.name];
-				control.addEventListener('change', normalhandler.bind(this), { signal, passive });
-			}
-		});
-
-		this.#shadow.getElementById('capture').addEventListener('click', async () => {
-			await this.#waitForDelay();
-			this.dispatchEvent(new Event('beforecapture'));
-			await this.#snapShutter();
-			await this.saveAs(`capture-${new Date().toISOString()}${this.ext}`);
-
-			this.dispatchEvent(new Event('aftercapture'));
-		}, { signal, passive });
-
-		this.#shadow.getElementById('start').addEventListener('click', this.start.bind(this), { signal, passive });
-		this.#shadow.getElementById('stop').addEventListener('click', this.stop.bind(this), { signal, passive });
-		this.#shadow.getElementById('fullscreen').addEventListener('click', this.requestFullscreen.bind(this), { signal, passive });
-
-		this.ownerDocument.addEventListener('fullscreenchange', () => {
-			if (this.isSameNode(this.ownerDocument.fullscreenElement)) {
-				this.#shadow.getElementById('exit-fullscreen').disabled = false;
-				this.#shadow.getElementById('fullscreen').disabled = true;
-			} else {
-				this.#shadow.getElementById('exit-fullscreen').disabled = true;
-				this.#shadow.getElementById('fullscreen').disabled = false;
-			}
-		}, { signal, passive });
-
-		this.#shadow.getElementById('exit-fullscreen').addEventListener('click', () => {
-			if (this.ownerDocument.fullscreenElement.isSameNode(this)) {
-				this.ownerDocument.exitFullscreen();
-			}
-		}, { signal, passive });
-
-		this.#mediaQuery.addEventListener('change', () => {
-			if (this.active) {
-				this.start();
-			}
-		}, { signal, passive });
-
-		this.#shadow.getElementById('fullscreen').disabled = false;
-
-		if (navigator.share instanceof Function) {
-			this.#shadow.getElementById('share').addEventListener('click', async () => {
-				await this.#waitForDelay();
-				this.dispatchEvent(new Event('beforecapture'));
-				await this.#snapShutter();
-				await this.share();
-				this.dispatchEvent(new Event('aftercapture'));
-			}, { signal, passive });
-
-			this.#shadow.getElementById('share').disabled = false;
-		} else {
-			this.#shadow.getElementById('share').disabled = true;
-		}
-
-		this.dispatchEvent(new Event('connected'));
-	}
-
-	disconnectedCallback() {
-		if (this.#controller instanceof AbortController && !this.#controller.signal.aborted) {
-			this.#controller.abort(`<${this.tagName}> was disconnected.`);
-		}
-
-		if (this.#blobImages.size !== 0) {
-			this.#blobImages.value().forEach(img => URL.revokeObjectURL(img.src));
-			this.#blobImages.clear();
-		}
-
-		this.#media.clear();
-		this.#overlays.clear();
-		this.stop();
-	}
-
-	attributeChangedCallback(name) {
-		switch (name) {
-			case 'facingmode':
-				if (this.active) {
-					this.start();
-				}
-				break;
-		}
-	}
-
-	get abortSignal() {
-		if (this.#controller instanceof AbortController) {
-			return this.#controller.signal;
-		} else {
-			return undefined;
-		}
-	}
-
-	get active() {
-		return this.#stream instanceof MediaStream;
-	}
-
-	get delay() {
-		if (this.hasAttribute('delay')) {
-			return Math.min(Math.max(parseFloat(this.getAttribute('delay'), 0)), 9);
-		} else {
-			return 0;
-		}
-	}
-
-	set delay(val) {
-		if (typeof val === 'string') {
-			this.delay = parseFloat(val);
-		} else if (Number.isFinite(val) && val > 0) {
-			this.setAttribute('delay', val.toString());
-		} else {
-			this.removeAttribute('delay');
-		}
-	}
-
-	get mediaElements() {
-		return this.#mediaSlot.assignedElements();
-	}
-
-	get overlayElements() {
-		return this.#overlaySlot.assignedElements();
-	}
-
-	get overlayItems() {
-		return [...this.#overlays.values()].filter(item => showItem(item));
-	}
-
-	get mediaItems() {
-		return [...this.#media.values()].filter(item => showItem(item));
-	}
-
-	get orientation() {
-		const aspectRatio = this.aspectRatio;
-
-		if (!Number.isFinite(aspectRatio)) {
-			return 'unknown';
-		} else if (aspectRatio === 1) {
-			return 'square';
-		} else if (aspectRatio > 1) {
-			return 'landscape';
-		} else {
-			return 'portrait';
-		}
-	}
-
-	get aspectRatio() {
-		if (this.active) {
-			return this.#video.videoWidth / this.#video.videoHeight;
-		} else {
-			return NaN;
-		}
-	}
-
-	get height() {
-		if (this.active) {
-			return this.#video.videoHeight;
-		} else {
-			return NaN;
-		}
-	}
-
-	get width() {
-		if (this.active) {
-			return this.#video.videoWidth;
-		} else {
-			return NaN;
-		}
-	}
-
-	get facingMode() {
-		if (this.hasAttribute('facingmode')) {
-			return this.getAttribute('facingmode');
-		} else {
-			return 'user';
-		}
-	}
-
-	set facingMode(val) {
-		if (typeof val !== 'string' || val.length === 0) {
-			this.removeAttribute('facingmode');
-		} else if (!['user', 'environment'].includes(val)) {
-			throw new TypeError(`Invalid option for facing mode: "${val}."`);
-		} else {
-			this.setAttribute('facingmode', val);
-		}
-	}
-
-	get frontFacing() {
-		return this.facingMode === 'user';
-	}
-
-	get mirror() {
-		return this.hasAttribute('mirror');
-	}
-
-	set mirror(val) {
-		this.toggleAttribute('mirror', val);
-	}
-
-	set frontFacing(val) {
-		this.facingMode = val ? 'user' : 'environment';
-	}
-
-	get whenConnected() {
-		const { promise, resolve } = Promise.withResolvers();
-
-		if (this.isConnected) {
-			resolve();
-		} else {
-			this.addEventListener('connected', () => resolve(), { once: true });
-		}
-
-		return promise;
-	}
-
-	get whenActive() {
-		const { resolve, promise } = Promise.withResolvers();
-
-		if (this.active) {
-			resolve();
-		} else {
-			this.addEventListener('start', () => resolve(), { once: true });
-		}
-
-		return promise;
-	}
-
-	get quality() {
-		if (this.hasAttribute('quality')) {
-			return Math.max(Math.min(parseFloat(this.getAttribute('quality')), 1), 0);
-		} else {
-			return 0.85;
-		}
-	}
-
-	get shutter() {
-		return this.hasAttribute('shutter');
-	}
-
-	set shutter(val) {
-		this.toggleAttribute('shutter', val);
-	}
-
-	set quality(val) {
-		if (typeof val === 'string') {
-			this.quality = parseFloat(val);
-		} else if (typeof val !== 'number' || Number.isNaN(val)) {
-			throw new TypeError('Quality must be a number.');
-		} else if (val < 0 || val > 1) {
-			throw new RangeError('Quality must be between 0 and 1.');
-		} else {
-			this.setAttribute('quality', val.toString());
-		}
-	}
-
-	get type() {
-		if (this.hasAttribute('type')) {
-			return this.getAttribute('type') ?? PNG_MIME;
-		} else {
-			return PNG_MIME;
-		}
-	}
-
-	set type(val) {
-		if (typeof val === 'string' && val.length !== 0) {
-			this.setAttribute('type', val);
-		} else {
-			this.removeAttribute('type');
-		}
-	}
-
-	get ext() {
-		switch (this.type) {
-			case PNG_MIME:
-				return PNG_EXT[0];
-
-			case WEBP_MIME:
-				return WEBP_EXT[0];
-
-			case JPEG_MIME:
-				// ['.jpeg', '.jpg']
-				return JPEG_EXT[1];
-
-			default:
-				return PNG_EXT[0];
-		}
-	}
-
-	refreshMedia() {
-		this.#media = new Map(this.#mediaSlot.assignedElements().map(el => [el, this.#getMediaInfo(el)]));
-	}
-
-	refreshOverlays() {
-		this.#overlays = new Map(this.#overlaySlot.assignedNodes().map(el => {
-			const { x = 0, y = 0, height = 0, width = 0, fill = '#000000', media } = el.dataset;
-
-			return [el, Object.freeze({
-				x: parseInt(x),
-				y: parseInt(y),
-				height: parseInt(height),
-				width: parseInt(width),
-				fill,
-				el,
-				media: typeof media === 'string' ? matchMedia(media) : null,
-			})];
-		}));
-	}
-
-	async start({ signal } = {}) {
-		if (this.active) {
-			this.stop({ exitFullscreen: false });
-		}
-
-		await this.whenConnected;
-		this.#requestWakeLock();
-
-		this.#stream = await navigator.mediaDevices.getUserMedia({
-			video: {
-				facingMode: this.facingMode,
-				width: {
-					min: 1,
-					ideal: 1280,
-				},
-				height: {
-					min: 1,
-					ideal: 720,
-				},
-			}
-		});
-
-		this.#video.srcObject = this.#stream;
-
-		this.#video.addEventListener('canplay', () => {
-			this.#video.play();
-			this.#ctx.canvas.height = this.#video.videoHeight;
-			this.#ctx.canvas.width = this.#video.videoWidth;
-			this.#internals.states.delete('--inactive');
-			this.#internals.states.add('--active');
-			this.#internals.states.add('--' + this.orientation);
-			this.#renderFrame({ signal });
-			this.#shadow.getElementById('start').disabled = true;
-			this.dispatchEvent(new Event('start'));
-		}, { once: true });
-	}
-
-	stop({ exitFullscreen = true } = {}) {
-		if (this.#stream instanceof MediaStream) {
-			this.#video.pause();
-			this.#stream.getTracks().forEach(track => track.stop());
-			this.#stream = null;
-			this.#ctx.reset();
-			this.#stream = null;
-			this.dispatchEvent(new Event('stop'));
-			this.#internals.states.clear();
-			this.#internals.states.add('--inactive');
-			this.#shadow.getElementById('start').disabled = false;
-
-			if ('wakeLock' in navigator && this.#wakeLock instanceof globalThis.WakeLockSentinel && !this.#wakeLock.released) {
-				this.#wakeLock.release();
-				this.#wakeLock = null;
-			}
-
-			if (exitFullscreen && this.isSameNode(document.fullscreenElement)) {
-				this.ownerDocument.exitFullscreen();
-			}
-		}
-	}
-
-	clearMedia() {
-		this.mediaElements.forEach(el => el.remove());
-	}
-
-	async addImage(src, {
-		x,
-		y,
-		width,
-		height,
-		media,
-		alt = 'Canvas image',
-		crossOrigin = 'anonymous',
-		referrerPolicy = 'no-referrer',
-	} = {}) {
-		const img = createImage(src, {
-			width, height, alt, crossOrigin, referrerPolicy,
-			dataset: { x, y },
-			slot: 'media',
-			loading: 'eager',
-		});
-
-		await img.decode();
-
-		if (typeof width !== 'number') {
-			img.width = img.naturalWidth;
-		}
-
-		if (typeof height !== 'number') {
-			img.height = img.naturalHeight;
-		}
-
-		if (typeof media === 'string') {
-			img.dataset.media = media;
-		} else if (media instanceof MediaQueryList) {
-			img.dataset.media = media.media;
-		}
-
-		this.append(img);
-		return img;
-	}
-
-	async addFont(fontFace) {
-		if (!(fontFace instanceof FontFace)) {
-			throw new TypeError('Not a FontFace and cannot be loaded.');
-		} else if (this.ownerDocument.fonts.status === 'loading') {
-			await this.ownerDocument.fonts.ready;
-		}
-
-		if (this.ownerDocument.fonts.has(fontFace)) {
-			return true;
-		} else {
-			try {
-				document.fonts.add(await fontFace.load());
-				return this.ownerDocument.fonts.has(fontFace);
-			} catch (err) {
-				console.error(err);
-				return false;
-			}
-		}
-	}
-
-	async addText(text, {
-		fill = '#000000',
-		font,
-		x,
-		y,
-		media,
-	} = {}) {
-		const el = createElement('span', {
-			text,
-			dataset: { fill, font, x, y },
-			slot: 'media',
-		});
-
-		if (typeof media === 'string') {
-			el.dataset.media = media;
-		} else if (media instanceof MediaQueryList) {
-			el.dataset.media = media.media;
-		}
-
-		this.append(el);
-		return el;
-	}
-
-	async addOverlay({
-		x = 0,
-		y = 0,
-		height = 0,
-		width = 0,
-		fill = '#000000',
-	}) {
-		const overlay = this.ownerDocument.createElement('div');
-		overlay.slot = 'overlay';
-		overlay.dataset.x = x.toString();
-		overlay.dataset.y = y.toString();
-		overlay.dataset.width = width.toString();
-		overlay.dataset.height = height.toString();
-		overlay.dataset.fill = fill.toString();
-		this.append(overlay);
-		return overlay;
-	}
-
-	async toFile(filename) {
-		if (typeof filename !== 'string' || filename.length === 0) {
-			throw new TypeError('Filename must be a non-empty string.');
-		} else {
-			const blob = await this.toBlob();
-			return new File([await blob.arrayBuffer()], filename, { type: blob.type });
-		}
-	}
-
-	async toBlob() {
-		const { promise, resolve, reject } = Promise.withResolvers();
-
-		this.whenConnected.then(() => {
-			try {
-				const oldMirror = this.mirror;
-				this.mirror = false;
-				this.#renderFrame();
-				this.#canvas.toBlob(resolve, this.type, this.quality);
-				this.mirror = oldMirror;
-			} catch (err) {
-				reject(err);
-			}
-		});
-
-		return await promise;
-	}
-
-	async toBlobURL() {
-		return URL.createObjectURL(await this.toBlob());
-	}
-
-	async toDataURL() {
-		const { promise, resolve, reject } = Promise.withResolvers();
-
-		this.whenConnected.then(() => {
-			try {
-				resolve(this.#canvas.toDataURL(this.type, this.quality));
-			} catch (err) {
-				reject(err);
-			}
-		});
-
-		return await promise;
-	}
-
-	async toImage({ alt = 'Captured image', height, width, classList } = {}) {
-		const img = document.createElement('img');
-		img.src = await this.toDataURL();
-		img.alt = alt;
-
-		if (typeof height === 'number') {
-			img.height = height;
-		}
-
-		if (typeof width === 'number') {
-			img.width = width;
-		}
-
-		if (Array.isArray(classList)) {
-			img.classList.add(...classList);
-		}
-
-		await img.decode();
-		return img;
-	}
-
-	async share() {
-		if (navigator.share instanceof Function) {
-			const { title, text, url } = this.dataset;
-
-			return await navigator.share({
-				title,
-				text,
-				url: typeof url === 'string' ? new URL(url, location.href).href : undefined,
-				files: [await this.toFile('capture' + this.ext)]
-			});
-		} else {
-			return false;
-		}
-	}
-
-	async saveAs(filename) {
-		if (this.active) {
-			const a = document.createElement('a');
-			a.href = await this.toBlobURL();
-			a.download = filename;
-			a.hidden = true;
-			this.ownerDocument.body.append(a);
-
-			setTimeout(() => {
-				URL.revokeObjectURL(a.href);
-				a.remove();
-			}, 200);
-
-			a.click();
-		}
-	}
-
-	#renderFrame({ signal } = {}) {
-		if (this.mirror) {
-			this.#ctx.save();
-			this.#ctx.scale(-1, 1);
-			this.#ctx.drawImage(this.#video, -this.#canvas.width, 0, this.#canvas.width, this.#canvas.height);
-			this.#ctx.restore();
-		} else {
-			this.#ctx.drawImage(this.#video, 0, 0, this.#canvas.width, this.#canvas.height);
-		}
-
-		if (this.#overlays.size !== 0) {
-			for (const overlay of this.#overlays.values()) {
-				if (showItem(overlay)) {
-					this.#ctx.fillStyle = overlay.fill;
-					this.#ctx.fillRect(overlay.x, overlay.y, overlay.width, overlay.height);
-				}
-			}
-		}
-
-		if (this.#media.size !== 0) {
-			for (const item of this.#media.values()) {
-				if (showItem(item)) {
-					try {
-						switch (item.type) {
-							case 'image':
-								this.#ctx.drawImage(item.el, item.x, item.y, item.width, item.height);
-								break;
-
-							case 'svg':
-								if (this.#blobImages.has(item.el)) {
-									this.#ctx.drawImage(this.#blobImages.get(item.el), item.x, item.y, item.width, item.height);
-								}
-								break;
-
-							case 'text':
-								this.#ctx.font = item.font;
-								this.#ctx.fillStyle = item.fill;
-								this.#ctx.lineWidth = item.lineWidth;
-								this.#ctx.fillText(item.text, item.x, item.y);
-								break;
-
-							default:
-								throw new TypeError(`Unknown type to render: "${item.type ?? 'unknown'}".`);
-						}
-					} catch (err) {
-						console.error(err);
-					}
-				}
-			}
-
-		}
-
-		if (signal instanceof AbortSignal && signal.aborted) {
-			this.stop();
-		} else {
-			requestAnimationFrame(() => this.#renderFrame({ signal }));
-		}
-	}
-
-	#getMediaInfo(el) {
-		const { x = 0, y = 0, fill = '#000000', font = '20px sans-serif', lineWidth = 1, media } = el.dataset;
-		const type = getType(el);
-		const [width, height] = getDimensions(el);
-		const text = type === 'text' ? el.textContent.trim() : '';
-
-		if (type === 'svg' && !this.#blobImages.has(el)) {
-			const blob = new Blob([el.outerHTML], { type: 'image/svg+xml' });
-			const img = new Image(width, height);
-			img.src = URL.createObjectURL(blob);
-			img.crossOrigin = 'anonymous';
-			img.decode().then(() => this.#blobImages.set(el, img));
-		}
-
-		return Object.freeze({
-			x: Math.max(parseInt(x), 0),
-			y: Math.max(parseInt(y), 0),
-			width,
-			height,
-			type,
-			text,
-			fill,
-			font,
-			lineWidth: Math.max(parseInt(lineWidth), 1),
-			media: typeof media === 'string' ? matchMedia(media) : null,
-			el,
-		});
-	}
-
-	async #requestWakeLock() {
-		if ('wakeLock' in navigator && !(this.#wakeLock instanceof globalThis.WakeLockSentinel && !this.#wakeLock.released)) {
-			try {
-				this.#wakeLock = await navigator.wakeLock.request('screen');
-
-				/*
-				* For some reason, a lock is sometimes granted but already released
-				*/
-				if (!this.#wakeLock.released) {
-					this.#wakeLock.addEventListener('release', () => {
-						if (this.ownerDocument.visibilityState !== 'visible' && this.active) {
-							this.ownerDocument.addEventListener('visibilitychange', () => {
-								this.#requestWakeLock();
-							}, { signal: this.#controller.signal, once: true });
-						}
-					});
-				}
-			} catch (err) {
-				console.error(err);
-			}
-		}
-	}
-
-	async #snapShutter() {
-		if (this.shutter) {
-			await this.#canvas.animate([
-				{ filter: 'none' },
-				{ filter: 'brightness(10)' },
-				{ filter: 'none' },
-			], {
-				duration: 200,
-				easing: 'ease-in-out',
-			}).finished;
-		}
-	}
-
-	async #waitForDelay() {
-		const delay = this.delay;
-
-		if (Number.isFinite(delay) && delay > 0) {
-			// @todo Add countdown overlay
-			const { height, width } = this;
-			const size = parseInt(Math.min(height, width) * 0.85);
-
-			const countdown = await this.addText(parseInt(delay).toString(), {
-				fill: '#fafafa',
-				font: `${size}px monospace`,
-				x: parseInt((width - size / 2) / 2),
-				y: parseInt((height + size / 2) / 2),
-			});
-
-			const timer = setInterval(() => {
-				let { text, ...attrs } = this.#media.get(countdown);
-				text = (parseInt(text) - 1).toString();
-				this.#media.set(countdown, { text, ...attrs });
-				countdown.textContent = text;
-			}, 1000);
-
-			await new Promise(resolve => setTimeout(() => {
-				clearInterval(timer);
-				countdown.remove();
-				requestAnimationFrame(resolve);
-			}, parseInt(delay * 1000)));
-		}
-	}
-
-	static get observedAttributes() {
-		return ['facingmode'];
-	}
-
-	static create({
-		images = [],
-		text = [],
-		overlays = [],
-		fonts = {},
-		type = 'image/jpeg',
-		quality = 0.9,
-		delay = 0,
-		shutter = true,
-		mirror = false,
-		frontFacing = true,
-	} = {}) {
-		const photoBooth = new HTMLPhotoBoothElement();
-		photoBooth.type = type;
-		photoBooth.quality = quality;
-		photoBooth.shutter = shutter;
-		photoBooth.frontFacing = frontFacing;
-		photoBooth.mirror = mirror;
-		photoBooth.delay = delay;
-
-		Object.entries(fonts).forEach(([name, { src, ...descriptors }]) => {
-			photoBooth.addFont(new FontFace(name, `url("${src}")`, descriptors)).catch(console.error);
-		});
-
-		images.forEach(({ src, height, width, x, y, media }) => {
-			photoBooth.addImage(src, { height, width, x, y, media });
-		});
-
-		text.forEach(({ string, x, y, fill, font, media }) => {
-			photoBooth.addText(string, { fill, x, y, font, media });
-		});
-
-		overlays.forEach(({ x, y, height, width, fill, media }) => {
-			photoBooth.addOverlay({ x, y, height, width, fill, media });
-		});
-
-		return photoBooth;
-	}
-
-	static async loadFromURL(url, opts) {
-		const {
-			images = [],
-			text = [],
-			overlays = [],
-			fonts = {},
-			type = 'image/jpeg',
-			quality = 0.9,
-			delay = 0,
-			shutter = true,
-			mirror = false,
-			frontFacing = true,
-		} = await getJSON(url, opts);
-
-		return HTMLPhotoBoothElement.create({ images, text, overlays, fonts, type, quality, delay, shutter, mirror, frontFacing });
-	}
-}
 
 customElements.define('photo-booth', HTMLPhotoBoothElement);
