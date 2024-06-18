@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.2.16] - 2024-06-18
+
+### Changed
+- Pass scaling factors around based on single attribute read
+
+###  Fixed
+- Do not trigger redundant rendering
+
 ## [v0.2.15] - 2024-06-17
 
 ### Added
