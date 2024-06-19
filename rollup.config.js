@@ -21,6 +21,10 @@ const config = { format: 'iife', sourcemap: true, globals };
 // npm run build:js:maps && npm run build:js:share && npm run build:js:mark-down
 
 export default [{
+	input: './polyfills.js',
+	onwarn, plugins, external,
+	output: { file: './polyfills.min.js', ...config },
+}, {
 	input: './leaflet/bundle.js',
 	onwarn, plugins, external,
 	output: { file: './leaflet/bundle.min.js', ...config },
