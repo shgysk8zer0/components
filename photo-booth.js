@@ -91,6 +91,8 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		const signal = this.#controller.signal;
 		const passive = true;
 
+		signal.addEventListener('abort', () => this.stop.bind(this), { once: true });
+
 		this.#shadow.adoptedStyleSheets = [styles];
 		this.#shadow.replaceChildren(template.cloneNode(true));
 		this.#shadow.querySelector('form').addEventListener('submit', event => {
@@ -175,9 +177,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	disconnectedCallback() {
-		if (this.#controller instanceof AbortController && !this.#controller.signal.aborted) {
-			this.#controller.abort(`<${this.tagName}> was disconnected.`);
-		}
+		this.#abort(`<${this.tagName}> was disconnected.`);
 
 		if (this.#blobImages.size !== 0) {
 			this.#blobImages.value().forEach(img => URL.revokeObjectURL(img.src));
@@ -186,7 +186,6 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 		this.#media.clear();
 		this.#overlays.clear();
-		this.stop();
 	}
 
 	attributeChangedCallback(name) {
@@ -200,11 +199,11 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
-	get abortSignal() {
+	get signal() {
 		if (this.#controller instanceof AbortController) {
 			return this.#controller.signal;
 		} else {
-			return null;
+			return AbortSignal.abort('No active controller.');
 		}
 	}
 
@@ -466,6 +465,12 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	refreshMedia() {
+		// Clear any SVG `blob:` URIs
+		if (this.#blobImages.size !== 0) {
+			this.#blobImages.values().forEach(blob => URL.revokeObjectURL(blob));
+			this.#blobImages.clear();
+		}
+
 		this.#media = new Map(this.#mediaSlot.assignedElements().map(el => [el, this.#getMediaInfo(el)]));
 	}
 
@@ -506,7 +511,17 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			this.#internals.states.add('--active');
 			this.#internals.states.add('--' + this.orientation);
 			const { scaleX, scaleY } = this.scaleFactor;
-			this.#renderFrame({ signal, scaleX, scaleY });
+
+			this.#playVideos();
+
+			this.#renderFrame({
+				scaleX,
+				scaleY,
+				signal: signal instanceof AbortSignal
+					? AbortSignal.any([signal, this.#controller.signal])
+					: this.#controller.signal,
+			});
+
 			this.#shadow.getElementById('start').disabled = true;
 			this.dispatchEvent(new Event('start'));
 
@@ -519,6 +534,8 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	stop({ exitFullscreen = true } = {}) {
 		if (this.#stream instanceof MediaStream) {
 			this.#video.pause();
+			this.#stopVideos();
+			this.#video.srcObject = null;
 			this.#stream.getTracks().forEach(track => track.stop());
 			this.#stream = null;
 			this.#ctx.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
@@ -649,6 +666,64 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		return overlay;
 	}
 
+	async addVideo(src, {
+		x = 0,
+		y = 0,
+		height,
+		width,
+		crossOrigin = 'anonymous',
+		loop = true,
+		media,
+	} = {}) {
+		const { resolve, reject, promise } = Promise.withResolvers();
+		const video = document.createElement('video');
+		const controller = new AbortController();
+		const signal = AbortSignal.any(this.#controller.signal, controller.signal);
+		video.dataset.x = x.toString();
+		video.dataset.y = y.toString();
+		video.muted = true;
+		video.loop = loop;
+		video.slot = 'media';
+
+		if (typeof crossOrigin === 'string') {
+			video.crossOrigin = crossOrigin;
+		}
+
+		if (typeof width !== 'number' || typeof height !== 'number') {
+			video.addEventListener('canplay', ({ target }) => {
+				target.width = target.videoWidth;
+				target.height = target.videoHeight;
+				resolve(target);
+				controller.abort('Video ready.');
+			}, { signal });
+		} else {
+			video.width = width;
+			video.height = height;
+			video.addEventListener('canplay', ({ target }) => {
+				resolve(target);
+				controller.abort('Video ready.');
+			}, { signal });
+		}
+
+		if (typeof media === 'string') {
+			video.dataset.media = media;
+		} else if (media instanceof MediaQueryList) {
+			video.dataset.media = media.media;
+		}
+
+		video.addEventListener('error', ({ target }) => {
+			reject(new DOMException(`Error loading video from ${target.src}`));
+			controller.abort('Error loading video.');
+		}, { signal });
+
+		signal.addEventListener('abort', this.#stopVideos.bind(this), { once: true });
+
+		video.src = src;
+		this.append(video);
+
+		return await promise;
+	}
+
 	async toFile(filename) {
 		if (typeof filename !== 'string' || filename.length === 0) {
 			throw new TypeError('Filename must be a non-empty string.');
@@ -740,10 +815,18 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
-	async saveAs(filename) {
+	async saveAs(filename, { type = 'blob' } = {}) {
 		if (this.active) {
 			const a = document.createElement('a');
-			a.href = await this.toBlobURL();
+
+			if (type === 'blob') {
+				a.href = await this.toBlobURL();
+			} else if (type === 'data') {
+				a.href = await this.toDataURL();
+			} else {
+				throw new TypeError(`Invalid type requested: "${type}."`);
+			}
+
 			a.download = filename;
 			a.hidden = true;
 			this.ownerDocument.body.append(a);
@@ -757,6 +840,12 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
+	#abort(reason) {
+		if (this.#controller instanceof AbortController) {
+			this.#controller.abort(reason);
+		}
+	}
+
 	#renderItem(item, ctx) {
 		try {
 			switch (item.type) {
@@ -766,6 +855,8 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 					break;
 
 				case 'image':
+				case 'canvas':
+				case 'video':
 					ctx.drawImage(item.el, item.x, item.y, item.width, item.height);
 					break;
 
@@ -926,6 +1017,22 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
+	#playVideos() {
+		this.#mediaSlot.assignedElements().forEach(el => {
+			if (el.tagName === 'VIDEO') {
+				el.play();
+			}
+		});
+	}
+
+	#stopVideos() {
+		this.#mediaSlot.assignedElements().forEach(el => {
+			if (el.tagName === 'VIDEO') {
+				el.pause();
+			}
+		});
+	}
+
 	static get observedAttributes() {
 		return ['facingmode', 'resolution'];
 	}
@@ -1014,6 +1121,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 	static create({
 		images = [],
+		videos = [],
 		text = [],
 		overlays = [],
 		fonts = {},
@@ -1027,6 +1135,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		hideItems = false,
 		classList = [],
 		id = null,
+		dataset = {},
 		share: {
 			title: shareTitle,
 			text: shareText,
@@ -1047,8 +1156,14 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			photoBooth.addFont(new FontFace(name, `url("${src}")`, descriptors)).catch(console.error);
 		});
 
+		Object.entries(dataset).forEach(([name, value]) => photoBooth.dataset[name] = value);
+
 		images.forEach(({ src, height, width, x, y, media }) => {
 			photoBooth.addImage(src, { height, width, x, y, media });
+		});
+
+		videos.forEach(({ src, width, height, x, y, crossOrigin, loop, media  }) => {
+			photoBooth.addVideo(src, { x, y, width, height, crossOrigin, loop, media });
 		});
 
 		text.forEach(({ string, x, y, fill, fontSize, fontWeight, fontFamily, media }) => {
@@ -1099,6 +1214,7 @@ function getDimensions(el) {
 	switch (el.tagName.toLowerCase()) {
 		case 'img':
 		case 'video':
+		case 'canvas':
 			return [el.width, el.height];
 
 		case 'svg':
@@ -1125,9 +1241,13 @@ function getType(el) {
 			return 'svg';
 
 		case 'img':
-		case 'video':
-		case 'canvas':
 			return 'image';
+
+		case 'video':
+			return 'video';
+
+		case 'canvas':
+			return 'canvas';
 
 		default:
 			return 'text';
