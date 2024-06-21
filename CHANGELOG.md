@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.2] - 2024-06-21
+
+### Added
+- Add `addVideo()` method to `<photo-booth>`
+- Add handling for slotted `<video>`s in `<photo-booth>`
+
 ## [v0.3.1] - 2024-06-19
 
 ### Fixed
