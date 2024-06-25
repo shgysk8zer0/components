@@ -13,4 +13,6 @@
 *.map
 *.json
 *.md
+*.svg
+*.mp4
 LICENSE
