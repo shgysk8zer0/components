@@ -8,15 +8,20 @@ import { getJSON } from '@shgysk8zer0/kazoo/http.js';
 export class CanvasCaptureEvent extends Event {
 	/** @private {CanvasRenderingContext2D} */
 	#ctx;
-
+	#blob;
 	/**
 	 *
 	 * @param {string} type
 	 * @param {CanvasRenderingContext2D} ctx
 	 */
-	constructor(type, ctx) {
+	constructor(type, ctx, blob) {
 		super(type);
 		this.#ctx = ctx;
+		this.#blob = blob;
+	}
+
+	get blob() {
+		return this.#blob;
 	}
 
 	get ctx() {
@@ -127,27 +132,64 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			await this.#waitForDelay();
 			this.dispatchEvent(new CanvasCaptureEvent('beforecapture', this.#ctx));
 			this.#snapShutter();
-			await this.saveAs(`capture-${new Date().toISOString()}${this.ext}`);
-			this.dispatchEvent(new CanvasCaptureEvent('aftercapture', this.#ctx));
+
+			if (this.saveOnCapture) {
+				const blob = await this.saveAs(`capture-${new Date().toISOString()}${this.ext}`, { type: 'blob' });
+				this.dispatchEvent(new CanvasCaptureEvent('aftercapture', this.#ctx, blob));
+			} else {
+				const blob = await this.toBlob();
+				this.dispatchEvent(new CanvasCaptureEvent('aftercapture', this.#ctx, blob));
+			}
 		}, { signal, passive });
 
 		this.#shadow.getElementById('start').addEventListener('click', () => this.start({ fullscreen: true, signal }), { signal, passive });
 		this.#shadow.getElementById('stop').addEventListener('click', this.stop.bind(this), { signal, passive });
-		this.#shadow.getElementById('fullscreen').addEventListener('click', this.requestFullscreen.bind(this), { signal, passive });
-
-		this.ownerDocument.addEventListener('fullscreenchange', () => {
-			if (this.isSameNode(this.ownerDocument.fullscreenElement)) {
-				this.#shadow.getElementById('exit-fullscreen').disabled = false;
-				this.#shadow.getElementById('fullscreen').disabled = true;
+		this.#shadow.getElementById('fullscreen').addEventListener('click', () => {
+			if (this.hasAttribute('popover')) {
+				this.showPopover();
 			} else {
-				this.#shadow.getElementById('exit-fullscreen').disabled = true;
-				this.#shadow.getElementById('fullscreen').disabled = false;
+				this.requestFullscreen();
+
 			}
 		}, { signal, passive });
 
+		const toggleFullscreen = ({ type, newState } = {}) => {
+			switch (type) {
+				case 'beforetoggle':
+					this.#shadow.getElementById('exit-fullscreen').disabled = newState === 'closed';
+					this.#shadow.getElementById('fullscreen').disabled = newState === 'open';
+
+					if  (newState === 'open' && ! this.active) {
+						this.start();
+					} else if (newState === 'closed' && this.active) {
+						this.stop();
+					}
+					break;
+
+				case 'fullscreenchange':
+					if (this.isSameNode(this.ownerDocument.fullscreenElement)) {
+						this.#shadow.getElementById('exit-fullscreen').disabled = false;
+						this.#shadow.getElementById('fullscreen').disabled = true;
+					} else {
+						this.#shadow.getElementById('exit-fullscreen').disabled = true;
+						this.#shadow.getElementById('fullscreen').disabled = false;
+					}
+					break;
+
+				default:
+					throw new TypeError('Unhandled event type: ' + type);
+
+			}
+		};
+
+		this.ownerDocument.addEventListener('fullscreenchange', toggleFullscreen, { signal, passive });
+		this.addEventListener('beforetoggle', toggleFullscreen, { signal, passive });
+
 		this.#shadow.getElementById('exit-fullscreen').addEventListener('click', () => {
-			if (this.ownerDocument.fullscreenElement.isSameNode(this)) {
+			if (this.isSameNode(this.ownerDocument.fullscreenElement)) {
 				this.ownerDocument.exitFullscreen();
+			} else if (this.hasAttribute('popover')) {
+				this.hidePopover();
 			}
 		}, { signal, passive });
 
@@ -396,6 +438,14 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		this.toggleAttribute('shutter', val);
 	}
 
+	get saveOnCapture() {
+		return this.hasAttribute('saveoncapture');
+	}
+
+	set saveOnCapture(val) {
+		this.toggleAttribute('saveoncapture', val);
+	}
+
 	set quality(val) {
 		if (typeof val === 'string') {
 			this.quality = parseFloat(val);
@@ -471,7 +521,10 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			this.#blobImages.clear();
 		}
 
-		this.#media = new Map(this.#mediaSlot.assignedElements().map(el => [el, this.#getMediaInfo(el)]));
+		this.#media = new Map(this.#mediaSlot.assignedElements()
+			.map(el => [el, this.#getMediaInfo(el)])
+			.sort((a, b) => a[1].sort > b[1].sort)
+		);
 	}
 
 	refreshOverlays() {
@@ -553,6 +606,8 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 			if (exitFullscreen && this.isSameNode(document.fullscreenElement)) {
 				this.ownerDocument.exitFullscreen();
+			} else if (exitFullscreen && this.hasAttribute('popover')) {
+				this.hidePopover();
 			}
 		}
 	}
@@ -578,7 +633,6 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		const img = createImage(src, {
 			width, height, alt, crossOrigin, referrerPolicy,
 			dataset: { x, y },
-			slot: 'media',
 			loading: 'eager',
 		});
 
@@ -598,12 +652,13 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			img.dataset.media = media.media;
 		}
 
+		img.slot = 'media';
 		this.append(img);
 		return img;
 	}
 
 	async addFont(fontFace) {
-		if (!(fontFace instanceof FontFace)) {
+		if (! (fontFace instanceof FontFace)) {
 			throw new TypeError('Not a FontFace and cannot be loaded.');
 		} else if (this.ownerDocument.fonts.status === 'loading') {
 			await this.ownerDocument.fonts.ready;
@@ -654,13 +709,11 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		width = 0,
 		fill = '#000000',
 	}) {
-		const overlay = this.ownerDocument.createElement('div');
-		overlay.slot = 'overlay';
-		overlay.dataset.x = x.toString();
-		overlay.dataset.y = y.toString();
-		overlay.dataset.width = width.toString();
-		overlay.dataset.height = height.toString();
-		overlay.dataset.fill = fill.toString();
+		const overlay = createElement('div', {
+			slot: 'overlay',
+			dataset: { x, y, width, height, fill },
+		});
+
 		this.append(overlay);
 
 		return overlay;
@@ -678,43 +731,41 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		const { resolve, reject, promise } = Promise.withResolvers();
 		const video = document.createElement('video');
 		const controller = new AbortController();
-		const signal = AbortSignal.any(this.#controller.signal, controller.signal);
+		const signal = controller.signal;
 		video.dataset.x = x.toString();
 		video.dataset.y = y.toString();
 		video.muted = true;
 		video.loop = loop;
-		video.slot = 'media';
+		video.preload = 'metadata';
 
 		if (typeof crossOrigin === 'string') {
 			video.crossOrigin = crossOrigin;
 		}
 
-		if (typeof width !== 'number' || typeof height !== 'number') {
-			video.addEventListener('canplay', ({ target }) => {
+		video.addEventListener('canplay', ({ target }) => {
+			if (typeof width !== 'number' || typeof height !== 'number') {
 				target.width = target.videoWidth;
 				target.height = target.videoHeight;
-				resolve(target);
-				controller.abort('Video ready.');
-			}, { signal });
-		} else {
-			video.width = width;
-			video.height = height;
-			video.addEventListener('canplay', ({ target }) => {
-				resolve(target);
-				controller.abort('Video ready.');
-			}, { signal });
-		}
+			} else {
+				video.width = width;
+				video.height = height;
+			}
+
+			video.slot = 'media';
+			resolve(target);
+			controller.abort('Video ready.');
+		}, { signal });
+
+		video.addEventListener('error', ({ target }) => {
+			reject(new DOMException(`Error loading video from ${target.src}`));
+			controller.abort('Error loading video.');
+		}, { signal });
 
 		if (typeof media === 'string') {
 			video.dataset.media = media;
 		} else if (media instanceof MediaQueryList) {
 			video.dataset.media = media.media;
 		}
-
-		video.addEventListener('error', ({ target }) => {
-			reject(new DOMException(`Error loading video from ${target.src}`));
-			controller.abort('Error loading video.');
-		}, { signal });
 
 		signal.addEventListener('abort', this.#stopVideos.bind(this), { once: true });
 
@@ -816,13 +867,18 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	async saveAs(filename, { type = 'blob' } = {}) {
+		const { resolve, promise } = Promise.withResolvers();
+
 		if (this.active) {
 			const a = document.createElement('a');
 
 			if (type === 'blob') {
-				a.href = await this.toBlobURL();
+				const blob = await this.toBlob();
+				resolve(blob);
+				a.href = URL.createObjectURL(blob);
 			} else if (type === 'data') {
 				a.href = await this.toDataURL();
+				resolve(null);
 			} else {
 				throw new TypeError(`Invalid type requested: "${type}."`);
 			}
@@ -838,6 +894,8 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 			a.click();
 		}
+
+		return promise;
 	}
 
 	#abort(reason) {
@@ -944,6 +1002,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			fontWeight,
 			fontSize,
 			fontFamily,
+			sort: MEDIA_TYPES.indexOf(type),
 			lineWidth: Math.max(parseInt(lineWidth), 1),
 			media: typeof media === 'string' ? matchMedia(media) : null,
 			el,
@@ -1120,10 +1179,10 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	static create({
+		overlays = [],
 		images = [],
 		videos = [],
 		text = [],
-		overlays = [],
 		fonts = {},
 		type = HTMLPhotoBoothElement.DEFAULT_TYPE,
 		quality = 0.9,
@@ -1132,6 +1191,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		shutter = true,
 		mirror = false,
 		frontFacing = true,
+		saveOnCapture = true,
 		hideItems = false,
 		classList = [],
 		id = null,
@@ -1151,28 +1211,9 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		photoBooth.mirror = mirror;
 		photoBooth.delay = delay;
 		photoBooth.resolution = resolution;
-
-		Object.entries(fonts).forEach(([name, { src, ...descriptors }]) => {
-			photoBooth.addFont(new FontFace(name, `url("${src}")`, descriptors)).catch(console.error);
-		});
+		photoBooth.saveOnCapture = saveOnCapture;
 
 		Object.entries(dataset).forEach(([name, value]) => photoBooth.dataset[name] = value);
-
-		images.forEach(({ src, height, width, x, y, media }) => {
-			photoBooth.addImage(src, { height, width, x, y, media });
-		});
-
-		videos.forEach(({ src, width, height, x, y, crossOrigin, loop, media  }) => {
-			photoBooth.addVideo(src, { x, y, width, height, crossOrigin, loop, media });
-		});
-
-		text.forEach(({ string, x, y, fill, fontSize, fontWeight, fontFamily, media }) => {
-			photoBooth.addText(string, { fill, x, y, fontSize, fontWeight, fontFamily, media });
-		});
-
-		overlays.forEach(({ x, y, height, width, fill, media }) => {
-			photoBooth.addOverlay({ x, y, height, width, fill, media });
-		});
 
 		Object.entries(attrs).forEach(([key, val]) => photoBooth.setAttribute(key, val));
 
@@ -1202,6 +1243,28 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			photoBooth.id = id;
 		}
 
+		photoBooth.whenConnected.then(async () => {
+			await Promise.allSettled(Object.entries(fonts).map(([name, { src, ...descriptors }]) => {
+				return photoBooth.addFont(new FontFace(name, `url("${src}")`, descriptors)).catch(console.error);
+			}));
+
+			await Promise.allSettled(overlays.map(({ x, y, height, width, fill, media }) => {
+				return photoBooth.addOverlay({ x, y, height, width, fill, media });
+			}));
+
+			await Promise.allSettled(videos.map(({ src, width, height, x, y, crossOrigin, loop, media  }) => {
+				photoBooth.addVideo(src, { x, y, width, height, crossOrigin, loop, media });
+			}));
+
+			await Promise.allSettled(images.map(({ src, height, width, x, y, media }) => {
+				photoBooth.addImage(src, { height, width, x, y, media });
+			}));
+
+			await Promise.allSettled(text.map(({ string, x, y, fill, fontSize, fontWeight, fontFamily, media }) => {
+				photoBooth.addText(string, { fill, x, y, fontSize, fontWeight, fontFamily, media });
+			}));
+		});
+
 		return photoBooth;
 	}
 
@@ -1209,6 +1272,15 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		return HTMLPhotoBoothElement.create(await getJSON(url, opts));
 	}
 }
+
+const MEDIA_TYPES = [
+	'overlay',
+	'canvas',
+	'video',
+	'image',
+	'svg',
+	'text',
+];
 
 function getDimensions(el) {
 	switch (el.tagName.toLowerCase()) {
@@ -1318,6 +1390,10 @@ const template = html`<details id="opts" class="absolute top full-width overlay"
 				<input type="checkbox" id="mirror" name="mirror" class="settings-control" />
 			</div>
 			<div class="form-group">
+				<label for="save-on-capture" class="input-label block">Save on Capture</label>
+				<input type="checkbox" id="save-on-capture" name="saveOnCapture" class="settings-control" />
+			</div>
+			<div class="form-group">
 				<label for="hide-items" class="input-label block">Hide Media/Overlays/Text</label>
 				<input type="checkbox" id="hide-items" name="hideItems" class="settings-control" />
 			</div>
@@ -1389,11 +1465,14 @@ const template = html`<details id="opts" class="absolute top full-width overlay"
 
 const styles = css`:host {
 	box-sizing: border-box;
-	display: block;
 	isolation: isolate;
 	position: relative;
 	color-scheme: dark;
 	background-color: #232323;
+}
+
+:host(:not([hidden], [popover])) {
+	display: block;
 }
 
 summary {
@@ -1571,6 +1650,24 @@ select.input {
 
 :host(:state(--portrait)) .canvas {
 	aspect-ratio: 9/16;
+}
+
+:host(:popover-open) {
+	border: none;
+	max-width: 100vw;
+	max-height: 100dvh;
+	position: fixed;
+	inset: 0 0 0 0;
+}
+
+:host(:popover-open) #exit-fullscreen {
+	display: none;
+}
+
+:host(:popover-open)::backdrop {
+	background-color: rgba(0, 0, 0, 0.8);
+	backdrop-filter: blur(4px);
 }`;
+
 
 customElements.define('photo-booth', HTMLPhotoBoothElement);
