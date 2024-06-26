@@ -5,16 +5,24 @@ import { WEBP as WEBP_EXT, PNG as PNG_EXT, JPEG as JPEG_EXT } from '@shgysk8zer0
 import { createImage, createElement } from '@shgysk8zer0/kazoo/elements.js';
 import { getJSON } from '@shgysk8zer0/kazoo/http.js';
 
+const imgSymbol = Symbol('photo-booth:imgData');
+
+// Keep a  strong reference in memory by attaching it to the global object.
+// Otherwise, ImageData seems to be garbage collected when it should not
+globalThis[imgSymbol] = new Map();
+
 export class CanvasCaptureEvent extends Event {
 	/** @private {CanvasRenderingContext2D} */
 	#ctx;
+
+	/** @private {Blob|null} */
 	#blob;
 	/**
 	 *
 	 * @param {string} type
 	 * @param {CanvasRenderingContext2D} ctx
 	 */
-	constructor(type, ctx, blob) {
+	constructor(type, ctx, blob = null) {
 		super(type);
 		this.#ctx = ctx;
 		this.#blob = blob;
@@ -90,11 +98,12 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	/** @private {WakeLockSentinel|null} */
 	#wakeLock = null;
 
-	/** @private {ImageBittmap|null} */
-	#prerendered = null;
-
 	/** @private {Number} */
 	#prerenderTimeout = NaN;
+
+	#offscreenCanvas = null;
+
+	#offscreenCtx = null;
 
 	constructor() {
 		super();
@@ -616,8 +625,10 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 		this.#video.addEventListener('canplay', () => {
 			this.#video.play();
-			this.#ctx.canvas.height = this.#video.videoHeight;
-			this.#ctx.canvas.width = this.#video.videoWidth;
+			this.#canvas.height = this.#video.videoHeight;
+			this.#canvas.width = this.#video.videoWidth;
+			this.#offscreenCanvas = new OffscreenCanvas(this.#canvas.width, this.#canvas.width);
+			this.#offscreenCtx = this.#offscreenCanvas.getContext('2d', { alpha: true });
 			this.#internals.states.delete('--inactive');
 			this.#internals.states.add('--active');
 			this.#internals.states.add('--' + this.orientation);
@@ -666,6 +677,11 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				this.ownerDocument.exitFullscreen();
 			} else if (exitFullscreen && this.hasAttribute('popover')) {
 				this.hidePopover();
+			}
+
+			if (globalThis[imgSymbol].has(this)) {
+				globalThis[imgSymbol].get(this).close();
+				globalThis[imgSymbol].delete(this);
 			}
 		}
 	}
@@ -987,14 +1003,23 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 					reject(new DOMException('Prerendering aborted'));
 				} else {
 					const { scaleX, scaleY } = this.scaleFactor;
-					const offscreenCanvas = new OffscreenCanvas(this.#canvas.width, this.#canvas.height);
-					const ctx = offscreenCanvas.getContext('2d', { alpha: true });
-					ctx.scale(scaleX, scaleY);
-					this.#renderItems(this.#overlays, ctx);
-					this.#renderItems(this.#media, ctx);
-					this.#prerendered = offscreenCanvas.transferToImageBitmap();
-					this.#prerenderTimeout = NaN;
-					resolve();
+					this.#offscreenCanvas.height = this.#canvas.height;
+					this.#offscreenCanvas.width  = this.#canvas.width;
+					this.#offscreenCtx.clearRect(0, 0, this.#offscreenCanvas.width, this.#offscreenCanvas.height);
+					this.#offscreenCtx.scale(scaleX, scaleY);
+					this.#renderItems(this.#overlays, this.#offscreenCtx);
+					this.#renderItems(this.#media, this.#offscreenCtx);
+
+					requestAnimationFrame(() => {
+						if (globalThis[imgSymbol].has(this)) {
+							globalThis[imgSymbol].get(this).close();
+						}
+
+						globalThis[imgSymbol].set(this, this.#offscreenCanvas.transferToImageBitmap());
+						// this.#prerendered = this.#offscreenCanvas.transferToImageBitmap();
+						this.#prerenderTimeout = NaN;
+						resolve();
+					})
 				}
 			}, 20);
 		}
@@ -1074,8 +1099,9 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				this.#renderItems(this.#videos, this.#ctx);
 			}
 
-			if (this.#prerendered instanceof ImageBitmap)  {
-				this.#ctx.drawImage(this.#prerendered, 0,  0, this.#prerendered.width,  this.#prerendered.height);
+			if (globalThis[imgSymbol].has(this))  {
+				const prerendered = globalThis[imgSymbol].get(this);
+				this.#ctx.drawImage(prerendered, 0,  0, prerendered.width, prerendered.height);
 			}
 
 			if (! once) {
@@ -1160,27 +1186,43 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				? [612, 1280, 720]
 				: [612, 720, 1280];
 
-			const countdown = await this.addText(parseInt(delay).toString(), {
+			const el = document.createElement('div');
+
+			const countdown = {
 				fill: '#fafafa',
 				fontFamily: 'monospace',
 				fontSize: size,
+				fontWeight: 'normal',
 				x: parseInt((width - size / 2) / 2),
 				y: parseInt((height + size / 2) / 2),
-			});
+				type: 'text',
+				text: parseInt(delay).toString(),
+				el,
+			};
 
-			const timer = setInterval(() => {
-				let { text, ...attrs } = this.#media.get(countdown);
-				text = (parseInt(text) - 1).toString();
-				this.#media.set(countdown, { text, ...attrs });
-				countdown.textContent = text;
-				this.#prerender();
+			this.#media.set(el, countdown);
+			await this.#prerender();
+
+			const timer = setInterval(async () => {
+				if (countdown.text !== '1') {
+					countdown.text = (parseInt(countdown.text) - 1).toString();
+					await this.#prerender();
+				} else {
+					clearInterval(timer);
+				}
 			}, 1000);
 
 			await new Promise(resolve => setTimeout(async () => {
 				clearInterval(timer);
-				countdown.remove();
+				countdown.text = '';
+
+				if  (this.#media.has(el)) {
+					this.#media.delete(el);
+				}
+
 				await this.#prerender().catch(console.warn);
-				requestAnimationFrame(resolve);
+				// this.#renderFrame({ once: true });
+				requestAnimationFrame(() => resolve());
 			}, parseInt(delay * 1000)));
 		}
 	}
@@ -1778,6 +1820,5 @@ select.input {
 	background-color: rgba(0, 0, 0, 0.8);
 	backdrop-filter: blur(4px);
 }`;
-
 
 customElements.define('photo-booth', HTMLPhotoBoothElement);
