@@ -84,6 +84,12 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	/** @private {WakeLockSentinel|null} */
 	#wakeLock = null;
 
+	/** @private {ImageBittmap|null} */
+	#prerendered = null;
+
+	/** @private {Number} */
+	#prerenderTimeout = NaN;
+
 	constructor() {
 		super();
 		this.#shadow = this.attachShadow({ mode: 'open' });
@@ -143,7 +149,13 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}, { signal, passive });
 
 		this.#shadow.getElementById('start').addEventListener('click', () => this.start({ fullscreen: true, signal }), { signal, passive });
-		this.#shadow.getElementById('stop').addEventListener('click', this.stop.bind(this), { signal, passive });
+		this.#shadow.getElementById('stop').addEventListener('click', () => {
+			if (this.#shadow.getElementById('opts').open) {
+				this.closeSettings();
+			} else {
+				this.stop();
+			}
+		}, { signal, passive });
 		this.#shadow.getElementById('fullscreen').addEventListener('click', () => {
 			if (this.hasAttribute('popover')) {
 				this.showPopover();
@@ -517,7 +529,10 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	refreshMedia() {
 		// Clear any SVG `blob:` URIs
 		if (this.#blobImages.size !== 0) {
-			this.#blobImages.values().forEach(blob => URL.revokeObjectURL(blob));
+			for (const blob of this.#blobImages.values()) {
+				URL.revokeObjectURL(blob);
+			}
+
 			this.#blobImages.clear();
 		}
 
@@ -525,6 +540,10 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			.map(el => [el, this.#getMediaInfo(el)])
 			.sort((a, b) => a[1].sort > b[1].sort)
 		);
+
+		if (this.active) {
+			this.#prerender();
+		}
 	}
 
 	refreshOverlays() {
@@ -542,6 +561,10 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				media: typeof media === 'string' ? matchMedia(media) : null,
 			})];
 		}));
+
+		if (this.active) {
+			this.#prerender();
+		}
 	}
 
 	async start({ signal, fullscreen =  false } = {}) {
@@ -563,13 +586,12 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			this.#internals.states.delete('--inactive');
 			this.#internals.states.add('--active');
 			this.#internals.states.add('--' + this.orientation);
-			const { scaleX, scaleY } = this.scaleFactor;
 
 			this.#playVideos();
+			this.#prerender();
 
 			this.#renderFrame({
-				scaleX,
-				scaleY,
+				once: false,
 				signal: signal instanceof AbortSignal
 					? AbortSignal.any([signal, this.#controller.signal])
 					: this.#controller.signal,
@@ -577,6 +599,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 			this.#shadow.getElementById('start').disabled = true;
 			this.dispatchEvent(new Event('start'));
+			this.closeSettings();
 
 			if (fullscreen) {
 				this.requestFullscreen();
@@ -618,6 +641,18 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 	clearOverlays() {
 		this.overlayElements.forEach(el => el.remove());
+	}
+
+	openSettings() {
+		if  (this.isConnected) {
+			this.#shadow.getElementById('opts').open = true;
+		}
+	}
+
+	closeSettings()  {
+		if (this.isConnected) {
+			this.#shadow.getElementById('opts').open = false;
+		}
 	}
 
 	async addImage(src, {
@@ -904,6 +939,34 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
+	async #prerender() {
+		const { resolve, reject, promise } = Promise.withResolvers();
+
+		if  (! this.active) {
+			reject(new DOMException('Not active.'));
+		} else {
+			const timeout = this.#prerenderTimeout;
+
+			this.#prerenderTimeout = setTimeout(() => {
+				if (! Number.isNaN(timeout) && timeout !== this.#prerenderTimeout) {
+					reject(new DOMException('Prerendering aborted'));
+				} else {
+					const { scaleX, scaleY } = this.scaleFactor;
+					const offscreenCanvas = new OffscreenCanvas(this.#canvas.width, this.#canvas.height);
+					const ctx = offscreenCanvas.getContext('2d', { alpha: true });
+					ctx.scale(scaleX, scaleY);
+					this.#renderItems(this.#overlays, ctx);
+					this.#renderItems(this.#media, ctx);
+					this.#prerendered = offscreenCanvas.transferToImageBitmap();
+					this.#prerenderTimeout = NaN;
+					resolve();
+				}
+			}, 20);
+		}
+
+		return await promise;
+	}
+
 	#renderItem(item, ctx) {
 		try {
 			switch (item.type) {
@@ -960,20 +1023,25 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
-	#renderFrame({ signal, scaleX, scaleY } = {}) {
+	#renderFrame({ signal, once = false } = {}) {
 		if (signal instanceof AbortSignal && signal.aborted) {
 			this.stop();
 		} else if (this.hideItems) {
 			this.#renderCamera(this.#ctx);
-			requestAnimationFrame(() => this.#renderFrame({ signal, scaleX, scaleY }));
+
+			if (! once) {
+				requestAnimationFrame(() => this.#renderFrame({ signal }));
+			}
 		} else {
 			this.#renderCamera(this.#ctx);
-			this.#ctx.save();
-			this.#ctx.scale(scaleX, scaleY);
-			this.#renderItems(this.#overlays, this.#ctx);
-			this.#renderItems(this.#media, this.#ctx);
-			this.#ctx.restore();
-			requestAnimationFrame(() => this.#renderFrame({ signal, scaleX, scaleY }));
+
+			if (this.#prerendered instanceof ImageBitmap)  {
+				this.#ctx.drawImage(this.#prerendered, 0,  0, this.#prerendered.width,  this.#prerendered.height);
+			}
+
+			if (! once) {
+				requestAnimationFrame(() => this.#renderFrame({ signal}));
+			}
 		}
 	}
 
@@ -1066,11 +1134,13 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				text = (parseInt(text) - 1).toString();
 				this.#media.set(countdown, { text, ...attrs });
 				countdown.textContent = text;
+				this.#prerender();
 			}, 1000);
 
-			await new Promise(resolve => setTimeout(() => {
+			await new Promise(resolve => setTimeout(async () => {
 				clearInterval(timer);
 				countdown.remove();
+				await this.#prerender().catch(console.warn);
 				requestAnimationFrame(resolve);
 			}, parseInt(delay * 1000)));
 		}
