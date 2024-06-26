@@ -1019,7 +1019,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 						// this.#prerendered = this.#offscreenCanvas.transferToImageBitmap();
 						this.#prerenderTimeout = NaN;
 						resolve();
-					})
+					});
 				}
 			}, 20);
 		}
