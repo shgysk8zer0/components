@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.4] - 2024-06-26
+
+### Added
+- Add support for rendering a single from in `<photo-booth>`
+
+### Changed
+- Prerender `<photto-booth>` media & overlays using `OffscreenCanvas` and `ImageBitmap`
+- Slotted `<video>`s should now use `slot="video"`
+
 ### [v0.3.3] - 2024-06-25
 
 ### Changed

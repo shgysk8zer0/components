@@ -5,16 +5,24 @@ import { WEBP as WEBP_EXT, PNG as PNG_EXT, JPEG as JPEG_EXT } from '@shgysk8zer0
 import { createImage, createElement } from '@shgysk8zer0/kazoo/elements.js';
 import { getJSON } from '@shgysk8zer0/kazoo/http.js';
 
+const imgSymbol = Symbol('photo-booth:imgData');
+
+// Keep a  strong reference in memory by attaching it to the global object.
+// Otherwise, ImageData seems to be garbage collected when it should not
+globalThis[imgSymbol] = new Map();
+
 export class CanvasCaptureEvent extends Event {
 	/** @private {CanvasRenderingContext2D} */
 	#ctx;
+
+	/** @private {Blob|null} */
 	#blob;
 	/**
 	 *
 	 * @param {string} type
 	 * @param {CanvasRenderingContext2D} ctx
 	 */
-	constructor(type, ctx, blob) {
+	constructor(type, ctx, blob = null) {
 		super(type);
 		this.#ctx = ctx;
 		this.#blob = blob;
@@ -54,6 +62,9 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	/** @private {HTMLSlotElement} */
 	#overlaySlot;
 
+	/** @private {HTMLSlotElement} */
+	#videoSlot;
+
 	/** @private {HTMLCanvasElement} */
 	#canvas;
 
@@ -78,11 +89,21 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	/** @private {Map} */
 	#overlays = new Map();
 
+	/** @private  {Map} */
+	#videos = new Map();
+
 	/** @private {Map<Element,object>} */
 	#blobImages = new Map();
 
 	/** @private {WakeLockSentinel|null} */
 	#wakeLock = null;
+
+	/** @private {Number} */
+	#prerenderTimeout = NaN;
+
+	#offscreenCanvas = null;
+
+	#offscreenCtx = null;
 
 	constructor() {
 		super();
@@ -107,11 +128,13 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 		this.#mediaSlot = this.#shadow.getElementById('media');
 		this.#overlaySlot = this.#shadow.getElementById('overlay');
+		this.#videoSlot = this.#shadow.getElementById('videos');
 		this.#canvas = this.#shadow.getElementById('canvas');
 		this.#video = this.#shadow.getElementById('stream');
 		this.#ctx = this.#canvas.getContext('2d');
 		this.#mediaSlot.addEventListener('slotchange', this.refreshMedia.bind(this), { signal, passive });
 		this.#overlaySlot.addEventListener('slotchange', this.refreshOverlays.bind(this), { signal, passive });
+		this.#videoSlot.addEventListener('slotchange', this.refreshVideos.bind(this), { signal, passive });
 
 		this.#shadow.getElementById('toggle-settings').addEventListener('click', () => {
 			const opts = this.#shadow.getElementById('opts');
@@ -143,7 +166,13 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}, { signal, passive });
 
 		this.#shadow.getElementById('start').addEventListener('click', () => this.start({ fullscreen: true, signal }), { signal, passive });
-		this.#shadow.getElementById('stop').addEventListener('click', this.stop.bind(this), { signal, passive });
+		this.#shadow.getElementById('stop').addEventListener('click', () => {
+			if (this.#shadow.getElementById('opts').open) {
+				this.closeSettings();
+			} else {
+				this.stop();
+			}
+		}, { signal, passive });
 		this.#shadow.getElementById('fullscreen').addEventListener('click', () => {
 			if (this.hasAttribute('popover')) {
 				this.showPopover();
@@ -279,12 +308,20 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		return this.#overlaySlot.assignedElements();
 	}
 
+	get videoElements() {
+		return this.#videoSlot.assignedElements();
+	}
+
 	get overlayItems() {
 		return [...this.#overlays.values()].filter(item => showItem(item));
 	}
 
 	get mediaItems() {
 		return [...this.#media.values()].filter(item => showItem(item));
+	}
+
+	get videoItems() {
+		return [...this.#videos.values()].filter(item => showItem(item));
 	}
 
 	get orientation() {
@@ -517,7 +554,10 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	refreshMedia() {
 		// Clear any SVG `blob:` URIs
 		if (this.#blobImages.size !== 0) {
-			this.#blobImages.values().forEach(blob => URL.revokeObjectURL(blob));
+			for (const blob of this.#blobImages.values()) {
+				URL.revokeObjectURL(blob);
+			}
+
 			this.#blobImages.clear();
 		}
 
@@ -525,6 +565,10 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			.map(el => [el, this.#getMediaInfo(el)])
 			.sort((a, b) => a[1].sort > b[1].sort)
 		);
+
+		if (this.active) {
+			this.#prerender();
+		}
 	}
 
 	refreshOverlays() {
@@ -542,6 +586,29 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				media: typeof media === 'string' ? matchMedia(media) : null,
 			})];
 		}));
+
+		if (this.active) {
+			this.#prerender();
+		}
+	}
+
+	refreshVideos() {
+		this.#videos = new Map(this.#videoSlot.assignedNodes().map(el => {
+			if (el.tagName === 'VIDEO') {
+				const { x = 0, y = 0, fill = '#000000', media } = el.dataset;
+
+				return [el, Object.freeze({
+					type: 'video',
+					x: parseInt(x),
+					y: parseInt(y),
+					height: el.hasAttribute('height') ? el.height : el.videoHeight,
+					width: el.hasAttribute('width') ? el.width : el.videoWidth,
+					fill,
+					el,
+					media: typeof media === 'string' ? matchMedia(media) : null,
+				})];
+			}
+		}));
 	}
 
 	async start({ signal, fullscreen =  false } = {}) {
@@ -558,18 +625,19 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 		this.#video.addEventListener('canplay', () => {
 			this.#video.play();
-			this.#ctx.canvas.height = this.#video.videoHeight;
-			this.#ctx.canvas.width = this.#video.videoWidth;
+			this.#canvas.height = this.#video.videoHeight;
+			this.#canvas.width = this.#video.videoWidth;
+			this.#offscreenCanvas = new OffscreenCanvas(this.#canvas.width, this.#canvas.width);
+			this.#offscreenCtx = this.#offscreenCanvas.getContext('2d', { alpha: true });
 			this.#internals.states.delete('--inactive');
 			this.#internals.states.add('--active');
 			this.#internals.states.add('--' + this.orientation);
-			const { scaleX, scaleY } = this.scaleFactor;
 
 			this.#playVideos();
+			this.#prerender();
 
 			this.#renderFrame({
-				scaleX,
-				scaleY,
+				once: false,
 				signal: signal instanceof AbortSignal
 					? AbortSignal.any([signal, this.#controller.signal])
 					: this.#controller.signal,
@@ -577,6 +645,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 			this.#shadow.getElementById('start').disabled = true;
 			this.dispatchEvent(new Event('start'));
+			this.closeSettings();
 
 			if (fullscreen) {
 				this.requestFullscreen();
@@ -609,6 +678,11 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			} else if (exitFullscreen && this.hasAttribute('popover')) {
 				this.hidePopover();
 			}
+
+			if (globalThis[imgSymbol].has(this)) {
+				globalThis[imgSymbol].get(this).close();
+				globalThis[imgSymbol].delete(this);
+			}
 		}
 	}
 
@@ -618,6 +692,18 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 	clearOverlays() {
 		this.overlayElements.forEach(el => el.remove());
+	}
+
+	openSettings() {
+		if  (this.isConnected) {
+			this.#shadow.getElementById('opts').open = true;
+		}
+	}
+
+	closeSettings()  {
+		if (this.isConnected) {
+			this.#shadow.getElementById('opts').open = false;
+		}
 	}
 
 	async addImage(src, {
@@ -751,7 +837,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				video.height = height;
 			}
 
-			video.slot = 'media';
+			video.slot = 'video';
 			resolve(target);
 			controller.abort('Video ready.');
 		}, { signal });
@@ -904,6 +990,43 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
+	async #prerender() {
+		const { resolve, reject, promise } = Promise.withResolvers();
+
+		if  (! this.active) {
+			reject(new DOMException('Not active.'));
+		} else {
+			const timeout = this.#prerenderTimeout;
+
+			this.#prerenderTimeout = setTimeout(() => {
+				if (! Number.isNaN(timeout) && timeout !== this.#prerenderTimeout) {
+					reject(new DOMException('Prerendering aborted'));
+				} else {
+					const { scaleX, scaleY } = this.scaleFactor;
+					this.#offscreenCanvas.height = this.#canvas.height;
+					this.#offscreenCanvas.width  = this.#canvas.width;
+					this.#offscreenCtx.clearRect(0, 0, this.#offscreenCanvas.width, this.#offscreenCanvas.height);
+					this.#offscreenCtx.scale(scaleX, scaleY);
+					this.#renderItems(this.#overlays, this.#offscreenCtx);
+					this.#renderItems(this.#media, this.#offscreenCtx);
+
+					requestAnimationFrame(() => {
+						if (globalThis[imgSymbol].has(this)) {
+							globalThis[imgSymbol].get(this).close();
+						}
+
+						globalThis[imgSymbol].set(this, this.#offscreenCanvas.transferToImageBitmap());
+						// this.#prerendered = this.#offscreenCanvas.transferToImageBitmap();
+						this.#prerenderTimeout = NaN;
+						resolve();
+					});
+				}
+			}, 20);
+		}
+
+		return await promise;
+	}
+
 	#renderItem(item, ctx) {
 		try {
 			switch (item.type) {
@@ -960,20 +1083,30 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
-	#renderFrame({ signal, scaleX, scaleY } = {}) {
+	#renderFrame({ signal, once = false } = {}) {
 		if (signal instanceof AbortSignal && signal.aborted) {
 			this.stop();
 		} else if (this.hideItems) {
 			this.#renderCamera(this.#ctx);
-			requestAnimationFrame(() => this.#renderFrame({ signal, scaleX, scaleY }));
+
+			if (! once) {
+				requestAnimationFrame(() => this.#renderFrame({ signal }));
+			}
 		} else {
 			this.#renderCamera(this.#ctx);
-			this.#ctx.save();
-			this.#ctx.scale(scaleX, scaleY);
-			this.#renderItems(this.#overlays, this.#ctx);
-			this.#renderItems(this.#media, this.#ctx);
-			this.#ctx.restore();
-			requestAnimationFrame(() => this.#renderFrame({ signal, scaleX, scaleY }));
+
+			if (this.#videos.size !== 0) {
+				this.#renderItems(this.#videos, this.#ctx);
+			}
+
+			if (globalThis[imgSymbol].has(this))  {
+				const prerendered = globalThis[imgSymbol].get(this);
+				this.#ctx.drawImage(prerendered, 0,  0, prerendered.width, prerendered.height);
+			}
+
+			if (! once) {
+				requestAnimationFrame(() => this.#renderFrame({ signal}));
+			}
 		}
 	}
 
@@ -1053,31 +1186,49 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				? [612, 1280, 720]
 				: [612, 720, 1280];
 
-			const countdown = await this.addText(parseInt(delay).toString(), {
+			const el = document.createElement('div');
+
+			const countdown = {
 				fill: '#fafafa',
 				fontFamily: 'monospace',
 				fontSize: size,
+				fontWeight: 'normal',
 				x: parseInt((width - size / 2) / 2),
 				y: parseInt((height + size / 2) / 2),
-			});
+				type: 'text',
+				text: parseInt(delay).toString(),
+				el,
+			};
 
-			const timer = setInterval(() => {
-				let { text, ...attrs } = this.#media.get(countdown);
-				text = (parseInt(text) - 1).toString();
-				this.#media.set(countdown, { text, ...attrs });
-				countdown.textContent = text;
+			this.#media.set(el, countdown);
+			await this.#prerender();
+
+			const timer = setInterval(async () => {
+				if (countdown.text !== '1') {
+					countdown.text = (parseInt(countdown.text) - 1).toString();
+					await this.#prerender();
+				} else {
+					clearInterval(timer);
+				}
 			}, 1000);
 
-			await new Promise(resolve => setTimeout(() => {
+			await new Promise(resolve => setTimeout(async () => {
 				clearInterval(timer);
-				countdown.remove();
-				requestAnimationFrame(resolve);
+				countdown.text = '';
+
+				if  (this.#media.has(el)) {
+					this.#media.delete(el);
+				}
+
+				await this.#prerender().catch(console.warn);
+				// this.#renderFrame({ once: true });
+				requestAnimationFrame(() => resolve());
 			}, parseInt(delay * 1000)));
 		}
 	}
 
 	#playVideos() {
-		this.#mediaSlot.assignedElements().forEach(el => {
+		this.#videoSlot.assignedElements().forEach(el => {
 			if (el.tagName === 'VIDEO') {
 				el.play();
 			}
@@ -1085,7 +1236,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	#stopVideos() {
-		this.#mediaSlot.assignedElements().forEach(el => {
+		this.#videoSlot.assignedElements().forEach(el => {
 			if (el.tagName === 'VIDEO') {
 				el.pause();
 			}
@@ -1460,6 +1611,7 @@ const template = html`<details id="opts" class="absolute top full-width overlay"
 	</button>
 </div>
 <slot name="media" id="media" hidden=""></slot>
+<slot name="video" id="videos" hidden=""></slot>
 <slot name="overlay" id="overlay" hidden=""></slot>
 <video id="stream" hidden=""></video>`;
 
@@ -1668,6 +1820,5 @@ select.input {
 	background-color: rgba(0, 0, 0, 0.8);
 	backdrop-filter: blur(4px);
 }`;
-
 
 customElements.define('photo-booth', HTMLPhotoBoothElement);
