@@ -54,6 +54,9 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	/** @private {HTMLSlotElement} */
 	#overlaySlot;
 
+	/** @private {HTMLSlotElement} */
+	#videoSlot;
+
 	/** @private {HTMLCanvasElement} */
 	#canvas;
 
@@ -77,6 +80,9 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 	/** @private {Map} */
 	#overlays = new Map();
+
+	/** @private  {Map} */
+	#videos = new Map();
 
 	/** @private {Map<Element,object>} */
 	#blobImages = new Map();
@@ -113,11 +119,13 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 		this.#mediaSlot = this.#shadow.getElementById('media');
 		this.#overlaySlot = this.#shadow.getElementById('overlay');
+		this.#videoSlot = this.#shadow.getElementById('videos');
 		this.#canvas = this.#shadow.getElementById('canvas');
 		this.#video = this.#shadow.getElementById('stream');
 		this.#ctx = this.#canvas.getContext('2d');
 		this.#mediaSlot.addEventListener('slotchange', this.refreshMedia.bind(this), { signal, passive });
 		this.#overlaySlot.addEventListener('slotchange', this.refreshOverlays.bind(this), { signal, passive });
+		this.#videoSlot.addEventListener('slotchange', this.refreshVideos.bind(this), { signal, passive });
 
 		this.#shadow.getElementById('toggle-settings').addEventListener('click', () => {
 			const opts = this.#shadow.getElementById('opts');
@@ -291,12 +299,20 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		return this.#overlaySlot.assignedElements();
 	}
 
+	get videoElements() {
+		return this.#videoSlot.assignedElements();
+	}
+
 	get overlayItems() {
 		return [...this.#overlays.values()].filter(item => showItem(item));
 	}
 
 	get mediaItems() {
 		return [...this.#media.values()].filter(item => showItem(item));
+	}
+
+	get videoItems() {
+		return [...this.#videos.values()].filter(item => showItem(item));
 	}
 
 	get orientation() {
@@ -567,6 +583,25 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
+	refreshVideos() {
+		this.#videos = new Map(this.#videoSlot.assignedNodes().map(el => {
+			if (el.tagName === 'VIDEO') {
+				const { x = 0, y = 0, fill = '#000000', media } = el.dataset;
+
+				return [el, Object.freeze({
+					type: 'video',
+					x: parseInt(x),
+					y: parseInt(y),
+					height: el.hasAttribute('height') ? el.height : el.videoHeight,
+					width: el.hasAttribute('width') ? el.width : el.videoWidth,
+					fill,
+					el,
+					media: typeof media === 'string' ? matchMedia(media) : null,
+				})];
+			}
+		}));
+	}
+
 	async start({ signal, fullscreen =  false } = {}) {
 		if (this.active) {
 			this.stop({ exitFullscreen: false });
@@ -786,7 +821,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				video.height = height;
 			}
 
-			video.slot = 'media';
+			video.slot = 'video';
 			resolve(target);
 			controller.abort('Video ready.');
 		}, { signal });
@@ -1035,6 +1070,10 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		} else {
 			this.#renderCamera(this.#ctx);
 
+			if (this.#videos.size !== 0) {
+				this.#renderItems(this.#videos, this.#ctx);
+			}
+
 			if (this.#prerendered instanceof ImageBitmap)  {
 				this.#ctx.drawImage(this.#prerendered, 0,  0, this.#prerendered.width,  this.#prerendered.height);
 			}
@@ -1147,7 +1186,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	#playVideos() {
-		this.#mediaSlot.assignedElements().forEach(el => {
+		this.#videoSlot.assignedElements().forEach(el => {
 			if (el.tagName === 'VIDEO') {
 				el.play();
 			}
@@ -1155,7 +1194,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	#stopVideos() {
-		this.#mediaSlot.assignedElements().forEach(el => {
+		this.#videoSlot.assignedElements().forEach(el => {
 			if (el.tagName === 'VIDEO') {
 				el.pause();
 			}
@@ -1530,6 +1569,7 @@ const template = html`<details id="opts" class="absolute top full-width overlay"
 	</button>
 </div>
 <slot name="media" id="media" hidden=""></slot>
+<slot name="video" id="videos" hidden=""></slot>
 <slot name="overlay" id="overlay" hidden=""></slot>
 <video id="stream" hidden=""></video>`;
 
