@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.5] - 2024-06-27
+
+### Added
+- Add additional rendering options separate from pre-rendered content in `<photo-booth>`
+
+### Changed
+- Update storing of `ImageBitmap` data in `<photo-booth>`
+
 ## [v0.3.4] - 2024-06-26
 
 ### Added
