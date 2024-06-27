@@ -638,11 +638,14 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			this.#internals.states.delete('--inactive');
 			this.#internals.states.add('--active');
 			this.#internals.states.add('--' + this.orientation);
+			const { scaleX, scaleY } = this.scaleFactor;
 
 			this.#playVideos();
 			this.#prerender();
 
 			this.#renderFrame({
+				scaleX,
+				scaleY,
 				once: false,
 				signal: signal instanceof AbortSignal
 					? AbortSignal.any([signal, this.#controller.signal])
@@ -1112,7 +1115,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
-	#renderFrame({ signal, once = false } = {}) {
+	#renderFrame({ signal, once = false, scaleX = 1, scaleY = 1 } = {}) {
 		if (signal instanceof AbortSignal && signal.aborted) {
 			this.stop();
 		} else if (this.hideItems) {
@@ -1123,7 +1126,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			}
 
 			if (! once) {
-				requestAnimationFrame(() => this.#renderFrame({ signal }));
+				requestAnimationFrame(() => this.#renderFrame({ signal, scaleX, scaleY }));
 			}
 		} else {
 			this.#renderCamera(this.#ctx);
@@ -1137,11 +1140,14 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			}
 
 			if (this.#renderExtras.size !== 0) {
+				this.#ctx.save();
+				this.#ctx.scale(scaleX, scaleY);
 				this.#renderExtras.forEach(item => this.#renderItem(item, this.#ctx));
+				this.#ctx.restore();
 			}
 
 			if (! once) {
-				requestAnimationFrame(() => this.#renderFrame({ signal}));
+				requestAnimationFrame(() => this.#renderFrame({ signal, scaleX, scaleY }));
 			}
 		}
 	}
@@ -1231,6 +1237,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				y: parseInt((height + size / 2) / 2),
 				text: parseInt(delay).toString(),
 			});
+
 			// const countdown = {
 			// 	fill: '#fafafa',
 			// 	fontFamily: 'monospace',

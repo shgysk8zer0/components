@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.6] - 2024-06-27
+
+### Fixed
+- Fix scaling of rendering (such as countdown) in `<photo-booth>`
+
 ## [v0.3.5] - 2024-06-27
 
 ### Added
