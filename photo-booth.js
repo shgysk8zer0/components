@@ -5,18 +5,13 @@ import { WEBP as WEBP_EXT, PNG as PNG_EXT, JPEG as JPEG_EXT } from '@shgysk8zer0
 import { createImage, createElement } from '@shgysk8zer0/kazoo/elements.js';
 import { getJSON } from '@shgysk8zer0/kazoo/http.js';
 
-const imgSymbol = Symbol('photo-booth:imgData');
-
-// Keep a  strong reference in memory by attaching it to the global object.
-// Otherwise, ImageData seems to be garbage collected when it should not
-globalThis[imgSymbol] = new Map();
-
 export class CanvasCaptureEvent extends Event {
 	/** @private {CanvasRenderingContext2D} */
 	#ctx;
 
 	/** @private {Blob|null} */
 	#blob;
+
 	/**
 	 *
 	 * @param {string} type
@@ -101,9 +96,17 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	/** @private {Number} */
 	#prerenderTimeout = NaN;
 
+	/** @private {OffscreenCanvas|null} */
 	#offscreenCanvas = null;
 
+	/** @private {CanvasRenderingContext2D|null} */
 	#offscreenCtx = null;
+
+	/** @private {ImageBitmap|null} */
+	#imageBitmap = null;
+
+	/** @private {Set<object>} */
+	#renderExtras = new Set();
 
 	constructor() {
 		super();
@@ -166,6 +169,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}, { signal, passive });
 
 		this.#shadow.getElementById('start').addEventListener('click', () => this.start({ fullscreen: true, signal }), { signal, passive });
+
 		this.#shadow.getElementById('stop').addEventListener('click', () => {
 			if (this.#shadow.getElementById('opts').open) {
 				this.closeSettings();
@@ -173,6 +177,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				this.stop();
 			}
 		}, { signal, passive });
+
 		this.#shadow.getElementById('fullscreen').addEventListener('click', () => {
 			if (this.hasAttribute('popover')) {
 				this.showPopover();
@@ -212,6 +217,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		};
 
 		this.ownerDocument.addEventListener('fullscreenchange', toggleFullscreen, { signal, passive });
+
 		this.addEventListener('beforetoggle', toggleFullscreen, { signal, passive });
 
 		this.#shadow.getElementById('exit-fullscreen').addEventListener('click', () => {
@@ -667,6 +673,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			this.#internals.states.clear();
 			this.#internals.states.add('--inactive');
 			this.#shadow.getElementById('start').disabled = false;
+			this.#renderExtras.clear();
 
 			if ('wakeLock' in navigator && this.#wakeLock instanceof globalThis.WakeLockSentinel && !this.#wakeLock.released) {
 				this.#wakeLock.release();
@@ -679,9 +686,9 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				this.hidePopover();
 			}
 
-			if (globalThis[imgSymbol].has(this)) {
-				globalThis[imgSymbol].get(this).close();
-				globalThis[imgSymbol].delete(this);
+			if (this.#imageBitmap instanceof ImageBitmap) {
+				this.#imageBitmap.close();
+				this.#imageBitmap = null;
 			}
 		}
 	}
@@ -990,6 +997,29 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
+	#addRenderItem({
+		type = null,
+		x = 0,
+		y = 0,
+		width = NaN,
+		height = NaN,
+		fill = '#000000',
+		fontFamily = 'sans-serif',
+		fontWeight = 'normal',
+		fontSize = 20,
+		lineWidth = 1,
+		text,
+		media,
+	}) {
+		if (typeof type !== 'string') {
+			throw new TypeError('Item type must be a string.');
+		} else {
+			const item = { type, x, y, width, height, fill, fontFamily, fontSize, fontWeight, lineWidth, text, media };
+			this.#renderExtras.add(item);
+			return item;
+		}
+	}
+
 	async #prerender() {
 		const { resolve, reject, promise } = Promise.withResolvers();
 
@@ -1000,7 +1030,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 			this.#prerenderTimeout = setTimeout(() => {
 				if (! Number.isNaN(timeout) && timeout !== this.#prerenderTimeout) {
-					reject(new DOMException('Prerendering aborted'));
+					reject(new DOMException('Pre-rendering aborted'));
 				} else {
 					const { scaleX, scaleY } = this.scaleFactor;
 					this.#offscreenCanvas.height = this.#canvas.height;
@@ -1011,12 +1041,11 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 					this.#renderItems(this.#media, this.#offscreenCtx);
 
 					requestAnimationFrame(() => {
-						if (globalThis[imgSymbol].has(this)) {
-							globalThis[imgSymbol].get(this).close();
+						if (this.#imageBitmap instanceof ImageBitmap) {
+							this.#imageBitmap.close();
 						}
 
-						globalThis[imgSymbol].set(this, this.#offscreenCanvas.transferToImageBitmap());
-						// this.#prerendered = this.#offscreenCanvas.transferToImageBitmap();
+						this.#imageBitmap = this.#offscreenCanvas.transferToImageBitmap();
 						this.#prerenderTimeout = NaN;
 						resolve();
 					});
@@ -1089,6 +1118,10 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		} else if (this.hideItems) {
 			this.#renderCamera(this.#ctx);
 
+			if (this.#renderExtras.size !== 0) {
+				this.#renderExtras.forEach(item => this.#renderItem(item));
+			}
+
 			if (! once) {
 				requestAnimationFrame(() => this.#renderFrame({ signal }));
 			}
@@ -1099,9 +1132,12 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				this.#renderItems(this.#videos, this.#ctx);
 			}
 
-			if (globalThis[imgSymbol].has(this))  {
-				const prerendered = globalThis[imgSymbol].get(this);
-				this.#ctx.drawImage(prerendered, 0,  0, prerendered.width, prerendered.height);
+			if (this.#imageBitmap instanceof ImageBitmap) {
+				this.#ctx.drawImage(this.#imageBitmap, 0, 0, this.#imageBitmap.width, this.#imageBitmap.height);
+			}
+
+			if (this.#renderExtras.size !== 0) {
+				this.#renderExtras.forEach(item => this.#renderItem(item, this.#ctx));
 			}
 
 			if (! once) {
@@ -1186,27 +1222,33 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				? [612, 1280, 720]
 				: [612, 720, 1280];
 
-			const el = document.createElement('div');
-
-			const countdown = {
+			const countdown = this.#addRenderItem({
+				type: 'text',
 				fill: '#fafafa',
 				fontFamily: 'monospace',
 				fontSize: size,
-				fontWeight: 'normal',
 				x: parseInt((width - size / 2) / 2),
 				y: parseInt((height + size / 2) / 2),
-				type: 'text',
 				text: parseInt(delay).toString(),
-				el,
-			};
+			});
+			// const countdown = {
+			// 	fill: '#fafafa',
+			// 	fontFamily: 'monospace',
+			// 	fontSize: size,
+			// 	fontWeight: 'normal',
+			// 	x: parseInt((width - size / 2) / 2),
+			// 	y: parseInt((height + size / 2) / 2),
+			// 	type: 'text',
+			// 	text: parseInt(delay).toString(),
+			// 	el: document.createElement('div'),
+			// };
 
-			this.#media.set(el, countdown);
-			await this.#prerender();
+			// this.#renderExtras.add(countdown);
+			// await this.#prerender();
 
 			const timer = setInterval(async () => {
 				if (countdown.text !== '1') {
 					countdown.text = (parseInt(countdown.text) - 1).toString();
-					await this.#prerender();
 				} else {
 					clearInterval(timer);
 				}
@@ -1216,12 +1258,10 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				clearInterval(timer);
 				countdown.text = '';
 
-				if  (this.#media.has(el)) {
-					this.#media.delete(el);
+				if (this.#renderExtras.has(countdown)) {
+					this.#renderExtras.delete(countdown);
 				}
 
-				await this.#prerender().catch(console.warn);
-				// this.#renderFrame({ once: true });
 				requestAnimationFrame(() => resolve());
 			}, parseInt(delay * 1000)));
 		}
@@ -1735,6 +1775,10 @@ select.input {
 	height: fit-content;
 }
 
+#opts:not([open]) {
+	display: none;
+}
+
 #opts[open] {
 	height: calc(100% - 128px);
 	overflow: auto;
@@ -1780,7 +1824,7 @@ select.input {
 	}
 }
 
-.btn {
+.btn, ::slotted(button[slot="controls"]) {
 	background-color: transparent;
 	color: inherit;
 	border: none;
@@ -1788,7 +1832,7 @@ select.input {
 	cursor: pointer;
 }
 
-.btn:disabled {
+.btn:disabled, ::slotted(button[slot="ccontrols"]:disabled) {
 	display: none;
 }
 
