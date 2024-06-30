@@ -155,6 +155,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		});
 
 		this.#shadow.getElementById('capture').addEventListener('click', async () => {
+			this.closeSettings();
 			await this.#waitForDelay();
 
 			if (this.dispatchEvent(new CanvasCaptureEvent('beforecapture', this.#ctx))) {
@@ -241,7 +242,9 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 		if (navigator.share instanceof Function) {
 			this.#shadow.getElementById('share').addEventListener('click', async () => {
+				this.closeSettings();
 				await this.#waitForDelay();
+
 				if (this.dispatchEvent(new CanvasCaptureEvent('beforecapture',  this.#ctx))) {
 					this.#snapShutter();
 					await this.share();
@@ -980,9 +983,8 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	async #prerender() {
 		const { resolve, reject, promise } = Promise.withResolvers();
 
-		if  (! this.active) {
-			reject(new DOMException('Not active.'));
-		} else {
+		if  (this.active) {
+
 			const timeout = this.#prerenderTimeout;
 
 			this.#prerenderTimeout = setTimeout(async () => {
@@ -994,6 +996,8 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 					this.#offscreenCanvas.width  = this.#canvas.width;
 					this.#offscreenCtx.clearRect(0, 0, this.#offscreenCanvas.width, this.#offscreenCanvas.height);
 					this.#offscreenCtx.scale(scaleX, scaleY);
+
+					// Do not use `Promise.all` as order matters
 					await this.#renderSlot(this.#overlaySlot, this.#offscreenCtx);
 					await this.#renderSlot(this.#mediaSlot, this.#offscreenCtx);
 					await this.#renderSlot(this.#textSlot, this.#offscreenCtx);
@@ -1017,9 +1021,12 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 					});
 				}
 			}, 16);
+
+		} else {
+			resolve();
 		}
 
-		return await promise;
+		await promise;
 	}
 
 	#renderItem(item, ctx) {

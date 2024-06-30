@@ -6,8 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.8] - 2024-06-30
+
 ### Added
 - Add ability to `preventDefault()` on `beforecapture` events in `<photo-booth>`
+- Close settings menu on capture
+
+### Changed
+- Do not throw/reject in `<photo-booth>.#prerender` if not active
 
 ## [v0.3.7] - 2024-06-30
 
