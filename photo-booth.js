@@ -1238,21 +1238,6 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				text: parseInt(delay).toString(),
 			});
 
-			// const countdown = {
-			// 	fill: '#fafafa',
-			// 	fontFamily: 'monospace',
-			// 	fontSize: size,
-			// 	fontWeight: 'normal',
-			// 	x: parseInt((width - size / 2) / 2),
-			// 	y: parseInt((height + size / 2) / 2),
-			// 	type: 'text',
-			// 	text: parseInt(delay).toString(),
-			// 	el: document.createElement('div'),
-			// };
-
-			// this.#renderExtras.add(countdown);
-			// await this.#prerender();
-
 			const timer = setInterval(async () => {
 				if (countdown.text !== '1') {
 					countdown.text = (parseInt(countdown.text) - 1).toString();
