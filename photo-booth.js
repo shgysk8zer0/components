@@ -16,6 +16,7 @@ export class CanvasCaptureEvent extends Event {
 	 *
 	 * @param {string} type
 	 * @param {CanvasRenderingContext2D} ctx
+	 * @param {Blob|null} blob
 	 */
 	constructor(type, ctx, blob = null) {
 		super(type);
@@ -52,10 +53,13 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	#internals;
 
 	/** @private {HTMLSlotElement} */
-	#mediaSlot;
+	#overlaySlot;
 
 	/** @private {HTMLSlotElement} */
-	#overlaySlot;
+	#textSlot;
+
+	/** @private {HTMLSlotElement} */
+	#mediaSlot;
 
 	/** @private {HTMLSlotElement} */
 	#videoSlot;
@@ -75,17 +79,11 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	/** @private {AbortController} */
 	#controller;
 
+	/** @private {AbortController} */
+	#runningController;
+
 	/** @private {MediaQueryList} */
 	#mediaQuery = matchMedia('(orientation: landscape');
-
-	/** @private {Map} */
-	#media = new Map();
-
-	/** @private {Map} */
-	#overlays = new Map();
-
-	/** @private  {Map} */
-	#videos = new Map();
 
 	/** @private {Map<Element,object>} */
 	#blobImages = new Map();
@@ -124,20 +122,22 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 		this.#shadow.adoptedStyleSheets = [styles];
 		this.#shadow.replaceChildren(template.cloneNode(true));
+
 		this.#shadow.querySelector('form').addEventListener('submit', event => {
 			event.preventDefault();
 			event.target.closest('details').open = false;
 		});
 
-		this.#mediaSlot = this.#shadow.getElementById('media');
 		this.#overlaySlot = this.#shadow.getElementById('overlay');
+		this.#mediaSlot = this.#shadow.getElementById('media');
 		this.#videoSlot = this.#shadow.getElementById('videos');
+		this.#textSlot = this.#shadow.getElementById('text');
 		this.#canvas = this.#shadow.getElementById('canvas');
 		this.#video = this.#shadow.getElementById('stream');
 		this.#ctx = this.#canvas.getContext('2d');
-		this.#mediaSlot.addEventListener('slotchange', this.refreshMedia.bind(this), { signal, passive });
-		this.#overlaySlot.addEventListener('slotchange', this.refreshOverlays.bind(this), { signal, passive });
-		this.#videoSlot.addEventListener('slotchange', this.refreshVideos.bind(this), { signal, passive });
+
+		this.#mediaSlot.addEventListener('slotchange', this.#prerender.bind(this), { signal, passive });
+		this.#overlaySlot.addEventListener('slotchange', this.#prerender.bind(this), { signal, passive });
 
 		this.#shadow.getElementById('toggle-settings').addEventListener('click', () => {
 			const opts = this.#shadow.getElementById('opts');
@@ -168,7 +168,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			}
 		}, { signal, passive });
 
-		this.#shadow.getElementById('start').addEventListener('click', () => this.start({ fullscreen: true, signal }), { signal, passive });
+		this.#shadow.getElementById('start').addEventListener('click', () => this.start({ fullscreen: true }), { signal, passive });
 
 		this.#shadow.getElementById('stop').addEventListener('click', () => {
 			if (this.#shadow.getElementById('opts').open) {
@@ -255,14 +255,12 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 	disconnectedCallback() {
 		this.#abort(`<${this.tagName}> was disconnected.`);
+		this.stop();
 
 		if (this.#blobImages.size !== 0) {
 			this.#blobImages.value().forEach(img => URL.revokeObjectURL(img.src));
 			this.#blobImages.clear();
 		}
-
-		this.#media.clear();
-		this.#overlays.clear();
 	}
 
 	attributeChangedCallback(name) {
@@ -306,28 +304,20 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
-	get mediaElements() {
-		return this.#mediaSlot.assignedElements();
-	}
-
 	get overlayElements() {
 		return this.#overlaySlot.assignedElements();
 	}
 
+	get mediaElements() {
+		return this.#mediaSlot.assignedElements();
+	}
+
+	get textElements() {
+		return this.#textSlot.assignedElements();
+	}
+
 	get videoElements() {
 		return this.#videoSlot.assignedElements();
-	}
-
-	get overlayItems() {
-		return [...this.#overlays.values()].filter(item => showItem(item));
-	}
-
-	get mediaItems() {
-		return [...this.#media.values()].filter(item => showItem(item));
-	}
-
-	get videoItems() {
-		return [...this.#videos.values()].filter(item => showItem(item));
 	}
 
 	get orientation() {
@@ -557,66 +547,6 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		};
 	}
 
-	refreshMedia() {
-		// Clear any SVG `blob:` URIs
-		if (this.#blobImages.size !== 0) {
-			for (const blob of this.#blobImages.values()) {
-				URL.revokeObjectURL(blob);
-			}
-
-			this.#blobImages.clear();
-		}
-
-		this.#media = new Map(this.#mediaSlot.assignedElements()
-			.map(el => [el, this.#getMediaInfo(el)])
-			.sort((a, b) => a[1].sort > b[1].sort)
-		);
-
-		if (this.active) {
-			this.#prerender();
-		}
-	}
-
-	refreshOverlays() {
-		this.#overlays = new Map(this.#overlaySlot.assignedNodes().map(el => {
-			const { x = 0, y = 0, height = 0, width = 0, fill = '#000000', media } = el.dataset;
-
-			return [el, Object.freeze({
-				type: 'overlay',
-				x: parseInt(x),
-				y: parseInt(y),
-				height: parseInt(height),
-				width: parseInt(width),
-				fill,
-				el,
-				media: typeof media === 'string' ? matchMedia(media) : null,
-			})];
-		}));
-
-		if (this.active) {
-			this.#prerender();
-		}
-	}
-
-	refreshVideos() {
-		this.#videos = new Map(this.#videoSlot.assignedNodes().map(el => {
-			if (el.tagName === 'VIDEO') {
-				const { x = 0, y = 0, fill = '#000000', media } = el.dataset;
-
-				return [el, Object.freeze({
-					type: 'video',
-					x: parseInt(x),
-					y: parseInt(y),
-					height: el.hasAttribute('height') ? el.height : el.videoHeight,
-					width: el.hasAttribute('width') ? el.width : el.videoWidth,
-					fill,
-					el,
-					media: typeof media === 'string' ? matchMedia(media) : null,
-				})];
-			}
-		}));
-	}
-
 	async start({ signal, fullscreen =  false } = {}) {
 		if (this.active) {
 			this.stop({ exitFullscreen: false });
@@ -628,6 +558,12 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		this.#requestWakeLock();
 
 		this.#video.srcObject = this.#stream;
+
+		if (this.#runningController instanceof AbortController && ! this.#runningController.signal.aborted) {
+			this.#runningController.abort('Component restarted.');
+		}
+
+		this.#runningController = new AbortController();
 
 		this.#video.addEventListener('canplay', () => {
 			this.#video.play();
@@ -648,8 +584,8 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 				scaleY,
 				once: false,
 				signal: signal instanceof AbortSignal
-					? AbortSignal.any([signal, this.#controller.signal])
-					: this.#controller.signal,
+					? AbortSignal.any([signal, this.#controller.signal, this.#runningController.signal])
+					: AbortSignal.any([this.#controller.signal, this.#runningController.signal]),
 			});
 
 			this.#shadow.getElementById('start').disabled = true;
@@ -663,12 +599,17 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	stop({ exitFullscreen = true } = {}) {
+		if (this.#runningController instanceof AbortController && ! this.#runningController.signal.aborted) {
+			this.#runningController.abort('Component stopped.');
+		}
+
 		if (this.#stream instanceof MediaStream) {
 			this.#video.pause();
 			this.#stopVideos();
 			this.#video.srcObject = null;
 			this.#stream.getTracks().forEach(track => track.stop());
 			this.#stream = null;
+			this.#video.srcObject = null;
 			this.#ctx.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
 			this.#ctx.reset();
 			this.#stream = null;
@@ -785,7 +726,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		const el = createElement('span', {
 			text,
 			dataset: { fill, fontFamily, fontWeight, fontSize, x, y },
-			slot: 'media',
+			slot: 'text',
 		});
 
 		if (typeof media === 'string') {
@@ -853,8 +794,9 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}, { signal });
 
 		video.addEventListener('error', ({ target }) => {
-			reject(new DOMException(`Error loading video from ${target.src}`));
-			controller.abort('Error loading video.');
+			const err = new DOMException(`Error loading video from ${target.src}`);
+			reject(err);
+			controller.abort(err);
 		}, { signal });
 
 		if (typeof media === 'string') {
@@ -883,16 +825,14 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	async toBlob() {
 		const { promise, resolve, reject } = Promise.withResolvers();
 
-		this.whenConnected.then(() => {
-			try {
-				const oldMirror = this.mirror;
-				this.mirror = false;
-				this.#canvas.toBlob(resolve, this.type, this.quality);
-				this.mirror = oldMirror;
-			} catch (err) {
-				reject(err);
-			}
-		});
+		if (this.active) {
+			const oldMirror = this.mirror;
+			this.mirror = false;
+			this.#canvas.toBlob(resolve, this.type, this.quality);
+			this.mirror = oldMirror;
+		} else {
+			reject(new DOMException('Component is not active.'));
+		}
 
 		return await promise;
 	}
@@ -904,13 +844,12 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	async toDataURL() {
 		const { promise, resolve, reject } = Promise.withResolvers();
 
-		this.whenConnected.then(() => {
-			try {
-				resolve(this.#canvas.toDataURL(this.type, this.quality));
-			} catch (err) {
-				reject(err);
-			}
-		});
+		if (this.active)  {
+			resolve(this.#canvas.toDataURL(this.type, this.quality));
+
+		} else {
+			reject(new DOMException('Component is not active.'));
+		}
 
 		return await promise;
 	}
@@ -998,6 +937,17 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		if (this.#controller instanceof AbortController) {
 			this.#controller.abort(reason);
 		}
+
+		if (this.#runningController instanceof AbortController && ! this.#runningController.signal.aborted) {
+			this.#runningController.abort(reason);
+		}
+	}
+
+	async #renderSlot(slot, ctx){
+		await Promise.all(slot.assignedElements().filter(showEl).map(async el => {
+			const item = await this.#getMediaInfo(el);
+			this.#renderItem(item, ctx);
+		}));
 	}
 
 	#addRenderItem({
@@ -1031,7 +981,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		} else {
 			const timeout = this.#prerenderTimeout;
 
-			this.#prerenderTimeout = setTimeout(() => {
+			this.#prerenderTimeout = setTimeout(async () => {
 				if (! Number.isNaN(timeout) && timeout !== this.#prerenderTimeout) {
 					reject(new DOMException('Pre-rendering aborted'));
 				} else {
@@ -1040,8 +990,9 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 					this.#offscreenCanvas.width  = this.#canvas.width;
 					this.#offscreenCtx.clearRect(0, 0, this.#offscreenCanvas.width, this.#offscreenCanvas.height);
 					this.#offscreenCtx.scale(scaleX, scaleY);
-					this.#renderItems(this.#overlays, this.#offscreenCtx);
-					this.#renderItems(this.#media, this.#offscreenCtx);
+					await this.#renderSlot(this.#overlaySlot, this.#offscreenCtx);
+					await this.#renderSlot(this.#mediaSlot, this.#offscreenCtx);
+					await this.#renderSlot(this.#textSlot, this.#offscreenCtx);
 
 					requestAnimationFrame(() => {
 						if (this.#imageBitmap instanceof ImageBitmap) {
@@ -1051,9 +1002,17 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 						this.#imageBitmap = this.#offscreenCanvas.transferToImageBitmap();
 						this.#prerenderTimeout = NaN;
 						resolve();
+
+						if (this.#blobImages.size !== 0) {
+							for (const img of this.#blobImages.values()) {
+								URL.revokeObjectURL(img.src);
+							}
+
+							this.#blobImages.clear();
+						}
 					});
 				}
-			}, 20);
+			}, 16);
 		}
 
 		return await promise;
@@ -1094,16 +1053,6 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
-	#renderItems(items, ctx) {
-		if (items.size !== 0) {
-			for (const item of items.values()) {
-				if (showItem(item)) {
-					this.#renderItem(item, ctx);
-				}
-			}
-		}
-	}
-
 	#renderCamera(ctx) {
 		if (this.mirror) {
 			this.#ctx.save();
@@ -1122,7 +1071,10 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			this.#renderCamera(this.#ctx);
 
 			if (this.#renderExtras.size !== 0) {
-				this.#renderExtras.forEach(item => this.#renderItem(item));
+				this.#ctx.save();
+				this.#ctx.scale(scaleX, scaleY);
+				this.#renderExtras.forEach(item => this.#renderItem(item, this.#ctx));
+				this.#ctx.restore();
 			}
 
 			if (! once) {
@@ -1131,9 +1083,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		} else {
 			this.#renderCamera(this.#ctx);
 
-			if (this.#videos.size !== 0) {
-				this.#renderItems(this.#videos, this.#ctx);
-			}
+			this.#videoSlot.assignedElements().filter(showEl).forEach(video => renderVideo(video, this.#ctx));
 
 			if (this.#imageBitmap instanceof ImageBitmap) {
 				this.#ctx.drawImage(this.#imageBitmap, 0, 0, this.#imageBitmap.width, this.#imageBitmap.height);
@@ -1152,9 +1102,9 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
-	#getMediaInfo(el) {
+	async #getMediaInfo(el) {
 		const { x = 0, y = 0, fill = '#000000', fontFamily = 'sans-serif', fontWeight = 'normal', fontSize = 20, lineWidth = 1, media } = el.dataset;
-		const type = getType(el);
+		const type = el.slot === 'overlay' ? 'overlay' : getType(el);
 		const [width, height] = getDimensions(el);
 		const text = type === 'text' ? el.textContent.trim() : '';
 
@@ -1163,7 +1113,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			const img = new Image(width, height);
 			img.src = URL.createObjectURL(blob);
 			img.crossOrigin = 'anonymous';
-			img.decode().then(() => this.#blobImages.set(el, img));
+			await img.decode().then(() => this.#blobImages.set(el, img)).catch(console.error);
 		}
 
 		return Object.freeze({
@@ -1260,7 +1210,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 	}
 
 	#playVideos() {
-		this.#videoSlot.assignedElements().forEach(el => {
+		this.#videoSlot.assignedElements().filter(showEl).forEach(el => {
 			if (el.tagName === 'VIDEO') {
 				el.play();
 			}
@@ -1465,6 +1415,14 @@ const MEDIA_TYPES = [
 	'text',
 ];
 
+function normalhandler({ target }) {
+	this[target.name] = target.value;
+}
+
+function checkboxHandler({ target }) {
+	this[target.name] = target.checked;
+}
+
 function getDimensions(el) {
 	switch (el.tagName.toLowerCase()) {
 		case 'img':
@@ -1476,15 +1434,25 @@ function getDimensions(el) {
 			return [el.width.baseVal.value, el.height.baseVal.value];
 
 		default:
-			return [NaN, NaN];
+			return [parseInt(el.dataset.width), parseInt(el.dataset.height)];
 	}
 }
 
-function showItem(item) {
-	if (item.el.hidden) {
+function renderVideo(video, ctx) {
+	ctx.drawImage(
+		video,
+		parseInt(video.dataset.x) ?? 0,
+		parseInt(video.dataset.y) ?? 0,
+		video.hasAttribute('width') ? video.width : video.videoWidth,
+		video.hasAttribute('height') ? video.height : video.videoHeight
+	);
+}
+
+function showEl(el) {
+	if (el.hidden) {
 		return false;
-	} else if (item.media instanceof MediaQueryList) {
-		return item.media.matches;
+	} else if ('media' in el.dataset) {
+		return matchMedia(el.dataset.media).matches;
 	} else {
 		return true;
 	}
@@ -1507,14 +1475,6 @@ function getType(el) {
 		default:
 			return 'text';
 	}
-}
-
-function normalhandler({ target }) {
-	this[target.name] = target.value;
-}
-
-function checkboxHandler({ target }) {
-	this[target.name] = target.checked;
 }
 
 const template = html`<details id="opts" class="absolute top full-width overlay" part="settings overlay">
@@ -1642,9 +1602,10 @@ const template = html`<details id="opts" class="absolute top full-width overlay"
 		</slot>
 	</button>
 </div>
+<slot name="overlay" id="overlay" hidden=""></slot>
+<slot name="text" id="text" hidden=""></slot>
 <slot name="media" id="media" hidden=""></slot>
 <slot name="video" id="videos" hidden=""></slot>
-<slot name="overlay" id="overlay" hidden=""></slot>
 <video id="stream" hidden=""></video>`;
 
 const styles = css`:host {

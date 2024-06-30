@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.7] - 2024-06-30
+
+### Changed
+- No longer store items to pre-render in a `Map`
+- Ensure resources are properly freed on stop/disconnect
+- Text elements now have their own slot
+
+### Fixed
+- Abort rendering / `requestAnimationFrame` on `stop(0)`
+
 ## [v0.3.6] - 2024-06-27
 
 ### Fixed
