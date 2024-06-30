@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add ability to `preventDefault()` on `beforecapture` events in `<photo-booth>`
+
 ## [v0.3.7] - 2024-06-30
 
 ### Changed
