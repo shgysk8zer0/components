@@ -19,7 +19,7 @@ export class CanvasCaptureEvent extends Event {
 	 * @param {Blob|null} blob
 	 */
 	constructor(type, ctx, blob = null) {
-		super(type);
+		super(type, { cancelable: true, bubbles: false, composed: false });
 		this.#ctx = ctx;
 		this.#blob = blob;
 	}
@@ -156,15 +156,18 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 		this.#shadow.getElementById('capture').addEventListener('click', async () => {
 			await this.#waitForDelay();
-			this.dispatchEvent(new CanvasCaptureEvent('beforecapture', this.#ctx));
-			this.#snapShutter();
 
-			if (this.saveOnCapture) {
-				const blob = await this.saveAs(`capture-${new Date().toISOString()}${this.ext}`, { type: 'blob' });
-				this.dispatchEvent(new CanvasCaptureEvent('aftercapture', this.#ctx, blob));
-			} else {
-				const blob = await this.toBlob();
-				this.dispatchEvent(new CanvasCaptureEvent('aftercapture', this.#ctx, blob));
+			if (this.dispatchEvent(new CanvasCaptureEvent('beforecapture', this.#ctx))) {
+				this.#snapShutter();
+
+				if (this.saveOnCapture) {
+					const blob = await this.saveAs(`capture-${new Date().toISOString()}${this.ext}`, { type: 'blob' });
+					this.dispatchEvent(new CanvasCaptureEvent('aftercapture', this.#ctx, blob));
+				} else {
+					const blob = await this.toBlob();
+					this.dispatchEvent(new CanvasCaptureEvent('aftercapture', this.#ctx, blob));
+				}
+
 			}
 		}, { signal, passive });
 
@@ -239,10 +242,11 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		if (navigator.share instanceof Function) {
 			this.#shadow.getElementById('share').addEventListener('click', async () => {
 				await this.#waitForDelay();
-				this.dispatchEvent(new CanvasCaptureEvent('beforecapture',  this.#ctx));
-				this.#snapShutter();
-				await this.share();
-				this.dispatchEvent(new CanvasCaptureEvent('aftercapture', this.#ctx));
+				if (this.dispatchEvent(new CanvasCaptureEvent('beforecapture',  this.#ctx))) {
+					this.#snapShutter();
+					await this.share();
+					this.dispatchEvent(new CanvasCaptureEvent('aftercapture', this.#ctx));
+				}
 			}, { signal, passive });
 
 			this.#shadow.getElementById('share').disabled = false;
