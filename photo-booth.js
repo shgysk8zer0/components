@@ -1705,7 +1705,11 @@ select.input {
 
 .canvas {
 	width: 100%;
-	aspect-ratio: 16/9;
+	height: auto;
+	max-width: 100vw;
+	max-height: 100vh;
+	max-height: 100dvh;
+	object-fit: contain;
 	margin: 0;
 	padding: 0;
 	border: none;
@@ -1749,10 +1753,12 @@ select.input {
 }
 
 #placeholder {
-	aspect-ratio: 16/9;
 	color: #fefefe;
 	padding-block: 60px;
 	font-size: 2em;
+	min-height: 350px;
+	max-height: 80vmin;
+	overflow: auto;
 }
 
 @media (any-pointer: fine) {
@@ -1768,10 +1774,6 @@ select.input {
 @media (orientation: portrait) {
 	:host(:fullscreen) canvas {
 		margin-top: 65px;
-	}
-
-	#placeholder {
-		aspect-ration: 9/16;
 	}
 
 	.panel {
@@ -1806,10 +1808,6 @@ select.input {
 
 :host(:state(--active)) .when-inactive {
 	display: none;
-}
-
-:host(:state(--portrait)) .canvas {
-	aspect-ratio: 9/16;
 }
 
 :host(:popover-open) {
