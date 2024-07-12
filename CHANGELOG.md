@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.10] - 2024-07-11
+
+### Fixed
+- Fixed media queries in `<photo-booth>` overlays
+
 ## [v0.3.9] - 2024-07-10
 
 ### Fixed
