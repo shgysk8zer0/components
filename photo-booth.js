@@ -752,10 +752,11 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		height = 0,
 		width = 0,
 		fill = '#000000',
+		media,
 	}) {
 		const overlay = createElement('div', {
 			slot: 'overlay',
-			dataset: { x, y, width, height, fill },
+			dataset: { x, y, width, height, fill, media },
 		});
 
 		this.append(overlay);
