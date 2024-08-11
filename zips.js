@@ -1,0 +1,18 @@
+export const postalCodes = {
+	'Alta Sierra': '95949',
+	'Weldon': '93240',
+	'Bodfish': '93205',
+	'South Lake': '93240',
+	'Mt. Mesa': '93240',
+	'Wofford Heights': '93285',
+	'Lake Isabella': '93240',
+	'Kernville': '93238',
+	'Onyx': '93255',
+	'Canebrake': '93255',
+	'Havilah': '',
+	'Caliente': '93518',
+	'Riverkern': '',
+	'Roads End': '',
+	'Johnsondale': '',
+	'Squirrel Mountain Valley': '93240',
+};

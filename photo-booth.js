@@ -4,6 +4,7 @@ import { WEBP as WEBP_MIME, PNG as PNG_MIME, JPEG as JPEG_MIME } from '@shgysk8z
 import { WEBP as WEBP_EXT, PNG as PNG_EXT, JPEG as JPEG_EXT } from '@shgysk8zer0/consts/exts.js';
 import { createImage, createElement } from '@shgysk8zer0/kazoo/elements.js';
 import { getJSON } from '@shgysk8zer0/kazoo/http.js';
+import { saveBlob } from '@shgysk8zer0/kazoo/filesystem.js';
 
 export class CanvasCaptureEvent extends Event {
 	/** @private {CanvasRenderingContext2D} */
@@ -913,29 +914,28 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		const { resolve, promise } = Promise.withResolvers();
 
 		if (this.active) {
-			const a = document.createElement('a');
 
 			if (type === 'blob') {
 				const blob = await this.toBlob();
+				saveBlob(blob, filename);
 				resolve(blob);
-				a.href = URL.createObjectURL(blob);
 			} else if (type === 'data') {
+				const a = document.createElement('a');
 				a.href = await this.toDataURL();
 				resolve(null);
+				a.download = filename;
+				a.hidden = true;
+				this.ownerDocument.body.append(a);
+
+				setTimeout(() => {
+					URL.revokeObjectURL(a.href);
+					a.remove();
+				}, 200);
+
+				a.click();
 			} else {
 				throw new TypeError(`Invalid type requested: "${type}."`);
 			}
-
-			a.download = filename;
-			a.hidden = true;
-			this.ownerDocument.body.append(a);
-
-			setTimeout(() => {
-				URL.revokeObjectURL(a.href);
-				a.remove();
-			}, 200);
-
-			a.click();
 		}
 
 		return promise;
@@ -1489,343 +1489,365 @@ function getType(el) {
 	}
 }
 
-const template = html`<details id="opts" class="absolute top full-width overlay" part="settings overlay">
-	<summary title="Camera Settings" aria-label="Camera Settings">
-		<slot name="settings-icon">
-			<svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor" role="presentation">
-				<path fill-rule="evenodd" d="M4 7H3V2h1v5zm-1 7h1v-3H3v3zm5 0h1V8H8v6zm5 0h1v-2h-1v2zm1-12h-1v6h1V2zM9 2H8v2h1V2zM5 8H2c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1zm5-3H7c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1zm5 4h-3c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1z"/>
-			</svg>
+const template = html`
+	<details id="opts" class="absolute top full-width overlay" part="settings overlay">
+		<summary title="Camera Settings" aria-label="Camera Settings">
+			<slot name="settings-icon">
+				<svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor" role="presentation">
+					<path fill-rule="evenodd" d="M4 7H3V2h1v5zm-1 7h1v-3H3v3zm5 0h1V8H8v6zm5 0h1v-2h-1v2zm1-12h-1v6h1V2zM9 2H8v2h1V2zM5 8H2c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1zm5-3H7c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1zm5 4h-3c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1z"/>
+				</svg>
+			</slot>
+		</summary>
+		<form id="camera-settings">
+			<datalist id="percents">
+				<option label="10%" value="0.1"></option>
+				<option label="25%" value="0.25"></option>
+				<option label="50%" value=".5"></option>
+				<option label="75%" value="0.75"></option>
+				<option label="90%" value="0.9"></option>
+			</datalist>
+			<fieldset class="no-border">
+				<legend class="visually-hidden">Camera Settings Menu</legend>
+				<div class="form-group">
+					<label for="facingmode" class="input-label block">Camera Facing Mode</label>
+					<select name="facingMode" id="facingmode" class="settings-control input block" required="">
+						<option label="Front" value="user"></option>
+						<option label="Rear" value="environment"></option>
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="type" class="input-label block">Output Format</label>
+					<select id="type" name="type" class="settings-control input block" required="">${HTMLPhotoBoothElement.types.map(({ label, mime }) => `
+						<option label="${label}" value="${mime}"></option>
+					`).join('')}
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="type" class="input-label block">Resolution</label>
+					<select id="type" name="resolution" class="settings-control input block" required="">${HTMLPhotoBoothElement.resolutions.map(({label, resolution}) => `
+						<option label="${label} (${resolution})"value="${resolution}"></option>
+					`).join('')}
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="quality" class="input-label block">Image Quality</label>
+					<input type="range" list="percents" name="quality" id="quality" class="settings-control input block" min="0" max="1" value="0.85" step="0.01" required="" />
+				</div>
+				<div class="form-group">
+					<label for="delay" class="input-label block">Capture Delay (seconds)</label>
+					<input type="number" id="delay" name="delay" class="settings-control input block" min="0" max="9" value="0" step="0.1" />
+				</div>
+				<div class="form-group">
+					<label for="shutter" class="input-label block">Shutter / Flash</label>
+					<input type="checkbox" id="shutter" name="shutter" class="settings-control" />
+				</div>
+				<div class="form-group">
+					<label for="mirror" class="input-label block">Mirror</label>
+					<input type="checkbox" id="mirror" name="mirror" class="settings-control" />
+				</div>
+				<div class="form-group">
+					<label for="save-on-capture" class="input-label block">Save on Capture</label>
+					<input type="checkbox" id="save-on-capture" name="saveOnCapture" class="settings-control" />
+				</div>
+				<div class="form-group">
+					<label for="hide-items" class="input-label block">Hide Media/Overlays/Text</label>
+					<input type="checkbox" id="hide-items" name="hideItems" class="settings-control" />
+				</div>
+			</fieldset>
+		</form>
+	</details>
+	<canvas id="canvas" part="preview" class="when-active canvas"></canvas>
+	<div part="placeholder" id="placeholder" class="when-inactive placeholder">
+		<slot name="placeholder">
+			<p id="instructions">
+				<span>Press the camera</span>
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" class="icon">
+					<path fill-rule="evenodd" d="M15.2 2.09L10 5.72V3c0-.55-.45-1-1-1H1c-.55 0-1 .45-1 1v9c0 .55.45 1 1 1h8c.55 0 1-.45 1-1V9.28l5.2 3.63c.33.23.8 0 .8-.41v-10c0-.41-.47-.64-.8-.41z"/>
+				</svg>
+				<span>button on the bottom to open your camera and get started.</span>
+			</p>
 		</slot>
-	</summary>
-	<form id="camera-settings">
-		<datalist id="percents">
-			<option label="10%" value="0.1"></option>
-			<option label="25%" value="0.25"></option>
-			<option label="50%" value=".5"></option>
-			<option label="75%" value="0.75"></option>
-			<option label="90%" value="0.9"></option>
-		</datalist>
-		<fieldset class="no-border">
-			<legend class="visually-hidden">Camera Settings Menu</legend>
-			<div class="form-group">
-				<label for="facingmode" class="input-label block">Camera Facing Mode</label>
-				<select name="facingMode" id="facingmode" class="settings-control input block" required="">
-					<option label="Front" value="user"></option>
-					<option label="Rear" value="environment"></option>
-				</select>
-			</div>
-			<div class="form-group">
-				<label for="type" class="input-label block">Output Format</label>
-				<select id="type" name="type" class="settings-control input block" required="">${HTMLPhotoBoothElement.types.map(({ label, mime }) => `
-					<option label="${label}" value="${mime}"></option>
-				`).join('')}
-				</select>
-			</div>
-			<div class="form-group">
-				<label for="type" class="input-label block">Resolution</label>
-				<select id="type" name="resolution" class="settings-control input block" required="">${HTMLPhotoBoothElement.resolutions.map(({label, resolution}) => `
-					<option label="${label} (${resolution})"value="${resolution}"></option>
-				`).join('')}
-				</select>
-			</div>
-			<div class="form-group">
-				<label for="quality" class="input-label block">Image Quality</label>
-				<input type="range" list="percents" name="quality" id="quality" class="settings-control input block" min="0" max="1" value="0.85" step="0.01" required="" />
-			</div>
-			<div class="form-group">
-				<label for="delay" class="input-label block">Capture Delay (seconds)</label>
-				<input type="number" id="delay" name="delay" class="settings-control input block" min="0" max="9" value="0" step="0.1" />
-			</div>
-			<div class="form-group">
-				<label for="shutter" class="input-label block">Shutter / Flash</label>
-				<input type="checkbox" id="shutter" name="shutter" class="settings-control" />
-			</div>
-			<div class="form-group">
-				<label for="mirror" class="input-label block">Mirror</label>
-				<input type="checkbox" id="mirror" name="mirror" class="settings-control" />
-			</div>
-			<div class="form-group">
-				<label for="save-on-capture" class="input-label block">Save on Capture</label>
-				<input type="checkbox" id="save-on-capture" name="saveOnCapture" class="settings-control" />
-			</div>
-			<div class="form-group">
-				<label for="hide-items" class="input-label block">Hide Media/Overlays/Text</label>
-				<input type="checkbox" id="hide-items" name="hideItems" class="settings-control" />
-			</div>
-		</fieldset>
-	</form>
-</details>
-<canvas id="canvas" part="preview" class="when-active canvas"></canvas>
-<div part="placeholder" id="placeholder" class="when-inactive placeholder">
-	<slot name="placeholder">
-		<p>Press the camera / start button on the bottom to open your camera and get started.</p>
-	</slot>
-</div>
-<div part="controls overlay" class="panel overlay absolute bottom full-width">
-	<button type="button" id="start" class="btn when-inactive" data-action="start" title="Open Camera"  aria-label="Open Camera">
-		<slot name="start-icon">
-			<svg width="96" height="96" viewBox="0 0 16 16" fill="currentColor">
-				<path fill-rule="evenodd" d="M15.2 2.09L10 5.72V3c0-.55-.45-1-1-1H1c-.55 0-1 .45-1 1v9c0 .55.45 1 1 1h8c.55 0 1-.45 1-1V9.28l5.2 3.63c.33.23.8 0 .8-.41v-10c0-.41-.47-.64-.8-.41z"/>
-			</svg>
-		</slot>
-	</button>
-	<button type="button" id="fullscreen" class="btn when-active" part="btn fullscreen-btn" data-action="fullscreen" title="Enter Fullscreen" aria-label="Enter Fullscreen" disabled="">
-		<slot name="fullscreen-icon">
-			<svg width="84" height="96" viewBox="0 0 14 16" fill="currentColor">
-				<path fill-rule="evenodd" d="M13 10h1v3c0 .547-.453 1-1 1h-3v-1h3v-3zM1 10H0v3c0 .547.453 1 1 1h3v-1H1v-3zm0-7h3V2H1c-.547 0-1 .453-1 1v3h1V3zm1 1h10v8H2V4zm2 6h6V6H4v4zm6-8v1h3v3h1V3c0-.547-.453-1-1-1h-3z"/>
-			</svg>
-		</slot>
-	</button>
-	<button type="button" id="exit-fullscreen" class="btn when-active" part="btn exit-fullscreen-btn" data-action="exit-fullscreen" title="Leave Fullscreen" aria-label="Exit Fullscreen" disabled="">
-		<slot name="exit-fullscreen-icon">
-			<svg width="84" height="96" viewBox="0 0 14 16" fill="currentColor">
-				<path fill-rule="evenodd" d="M2 4H0V3h2V1h1v2c0 .547-.453 1-1 1zm0 8H0v1h2v2h1v-2c0-.547-.453-1-1-1zm9-2c0 .547-.453 1-1 1H4c-.547 0-1-.453-1-1V6c0-.547.453-1 1-1h6c.547 0 1 .453 1 1v4zM9 7H5v2h4V7zm2 6v2h1v-2h2v-1h-2c-.547 0-1 .453-1 1zm1-10V1h-1v2c0 .547.453 1 1 1h2V3h-2z"/>
-			</svg>
-		</slot>
-	</button>
-	<button type="button" id="toggle-settings" class="btn" part="btn settings-btn" data-action="toggle-settings" title="Toggle Settings Menu" aria-label="Toggle Settings">
-		<slot name="settings-icon">
-			<svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor" role="presentation">
-				<path fill-rule="evenodd" d="M4 7H3V2h1v5zm-1 7h1v-3H3v3zm5 0h1V8H8v6zm5 0h1v-2h-1v2zm1-12h-1v6h1V2zM9 2H8v2h1V2zM5 8H2c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1zm5-3H7c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1zm5 4h-3c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1z"/>
-			</svg>
-		</slot>
-	</button>
-	<button type="button" id="capture" class="btn when-active" part="btn capture-btn" data-action="capture" title="Capture" aria-label="Capture" accesskey=" ">
-		<slot name="capture-icon">
-			<svg viewBox="0 0 2 2" fill="currentColor" height="96" width="96" fill="currentColor">
-				<circle cx="1" cy="1" r="1"></circle>
-			</svg>
-		</slot>
-	</button>
-	<button type="button" id="share" class="btn when-active" part="btn share-btn" data-action="share" title="Share" aria-label="Share" accesskey="s" disabled="">
-		<slot name="share-icon">
-			<svg width="96" height="96" viewBox="0 0 16 16" fill="currentColor">
-				<path d="M5.969 7.969a2.969 2.969 0 1 1-5.938 0 2.969 2.969 0 1 1 5.938 0zm9.968 5a2.969 2.969 0 1 1-5.937 0 2.969 2.969 0 1 1 5.937 0zm0-10a2.969 2.969 0 1 1-5.937 0 2.969 2.969 0 1 1 5.937 0z" overflow="visible"/>
-				<path d="M12.625 2.156L2.562 7.031.75 7.938l1.812.906 10.032 5.062.906-1.812-8.22-4.156 8.219-4-.875-1.782z" overflow="visible"/>
-			</svg>
-		</slot>
-	</button>
-	<slot name="controls" class="when-active"></slot>
-	<button type="button" id="stop" class="btn when-active" part="btn stop-btn" data-action="stop" title="Close Camera" aria-label="Close Camera" accesskey="x">
-		<slot name="stop-icon">
-			<svg width="96" height="96" viewBox="0 0 12 16" fill="currentColor">
-				<path fill-rule="evenodd" d="M7.48 8l3.75 3.75-1.48 1.48L6 9.48l-3.75 3.75-1.48-1.48L4.52 8 .77 4.25l1.48-1.48L6 6.52l3.75-3.75 1.48 1.48L7.48 8z"/>
-			</svg>
-		</slot>
-	</button>
-</div>
-<slot name="overlay" id="overlay" hidden=""></slot>
-<slot name="text" id="text" hidden=""></slot>
-<slot name="media" id="media" hidden=""></slot>
-<slot name="video" id="videos" hidden=""></slot>
-<video id="stream" hidden=""></video>`;
+	</div>
+	<div part="controls overlay" class="panel overlay absolute bottom full-width">
+		<button type="button" id="start" class="btn when-inactive" data-action="start" title="Open Camera"  aria-label="Open Camera">
+			<slot name="start-icon">
+				<svg width="96" height="96" viewBox="0 0 16 16" fill="currentColor">
+					<path fill-rule="evenodd" d="M15.2 2.09L10 5.72V3c0-.55-.45-1-1-1H1c-.55 0-1 .45-1 1v9c0 .55.45 1 1 1h8c.55 0 1-.45 1-1V9.28l5.2 3.63c.33.23.8 0 .8-.41v-10c0-.41-.47-.64-.8-.41z"/>
+				</svg>
+			</slot>
+		</button>
+		<button type="button" id="fullscreen" class="btn when-active" part="btn fullscreen-btn" data-action="fullscreen" title="Enter Fullscreen" aria-label="Enter Fullscreen" disabled="">
+			<slot name="fullscreen-icon">
+				<svg width="84" height="96" viewBox="0 0 14 16" fill="currentColor">
+					<path fill-rule="evenodd" d="M13 10h1v3c0 .547-.453 1-1 1h-3v-1h3v-3zM1 10H0v3c0 .547.453 1 1 1h3v-1H1v-3zm0-7h3V2H1c-.547 0-1 .453-1 1v3h1V3zm1 1h10v8H2V4zm2 6h6V6H4v4zm6-8v1h3v3h1V3c0-.547-.453-1-1-1h-3z"/>
+				</svg>
+			</slot>
+		</button>
+		<button type="button" id="exit-fullscreen" class="btn when-active" part="btn exit-fullscreen-btn" data-action="exit-fullscreen" title="Leave Fullscreen" aria-label="Exit Fullscreen" disabled="">
+			<slot name="exit-fullscreen-icon">
+				<svg width="84" height="96" viewBox="0 0 14 16" fill="currentColor">
+					<path fill-rule="evenodd" d="M2 4H0V3h2V1h1v2c0 .547-.453 1-1 1zm0 8H0v1h2v2h1v-2c0-.547-.453-1-1-1zm9-2c0 .547-.453 1-1 1H4c-.547 0-1-.453-1-1V6c0-.547.453-1 1-1h6c.547 0 1 .453 1 1v4zM9 7H5v2h4V7zm2 6v2h1v-2h2v-1h-2c-.547 0-1 .453-1 1zm1-10V1h-1v2c0 .547.453 1 1 1h2V3h-2z"/>
+				</svg>
+			</slot>
+		</button>
+		<button type="button" id="toggle-settings" class="btn" part="btn settings-btn" data-action="toggle-settings" title="Toggle Settings Menu" aria-label="Toggle Settings">
+			<slot name="settings-icon">
+				<svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor" role="presentation">
+					<path fill-rule="evenodd" d="M4 7H3V2h1v5zm-1 7h1v-3H3v3zm5 0h1V8H8v6zm5 0h1v-2h-1v2zm1-12h-1v6h1V2zM9 2H8v2h1V2zM5 8H2c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1zm5-3H7c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1zm5 4h-3c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1z"/>
+				</svg>
+			</slot>
+		</button>
+		<button type="button" id="capture" class="btn when-active" part="btn capture-btn" data-action="capture" title="Capture" aria-label="Capture" accesskey=" ">
+			<slot name="capture-icon">
+				<svg viewBox="0 0 2 2" fill="currentColor" height="96" width="96" fill="currentColor">
+					<circle cx="1" cy="1" r="1"></circle>
+				</svg>
+			</slot>
+		</button>
+		<button type="button" id="share" class="btn when-active" part="btn share-btn" data-action="share" title="Share" aria-label="Share" accesskey="s" disabled="">
+			<slot name="share-icon">
+				<svg width="96" height="96" viewBox="0 0 16 16" fill="currentColor">
+					<path d="M5.969 7.969a2.969 2.969 0 1 1-5.938 0 2.969 2.969 0 1 1 5.938 0zm9.968 5a2.969 2.969 0 1 1-5.937 0 2.969 2.969 0 1 1 5.937 0zm0-10a2.969 2.969 0 1 1-5.937 0 2.969 2.969 0 1 1 5.937 0z" overflow="visible"/>
+					<path d="M12.625 2.156L2.562 7.031.75 7.938l1.812.906 10.032 5.062.906-1.812-8.22-4.156 8.219-4-.875-1.782z" overflow="visible"/>
+				</svg>
+			</slot>
+		</button>
+		<slot name="controls" class="when-active"></slot>
+		<button type="button" id="stop" class="btn when-active" part="btn stop-btn" data-action="stop" title="Close Camera" aria-label="Close Camera" accesskey="x">
+			<slot name="stop-icon">
+				<svg width="96" height="96" viewBox="0 0 12 16" fill="currentColor">
+					<path fill-rule="evenodd" d="M7.48 8l3.75 3.75-1.48 1.48L6 9.48l-3.75 3.75-1.48-1.48L4.52 8 .77 4.25l1.48-1.48L6 6.52l3.75-3.75 1.48 1.48L7.48 8z"/>
+				</svg>
+			</slot>
+		</button>
+	</div>
+	<slot name="overlay" id="overlay" hidden=""></slot>
+	<slot name="text" id="text" hidden=""></slot>
+	<slot name="media" id="media" hidden=""></slot>
+	<slot name="video" id="videos" hidden=""></slot>
+	<video id="stream" hidden=""></video>
+`;
 
-const styles = css`:host {
-	box-sizing: border-box;
-	isolation: isolate;
-	position: relative;
-	color-scheme: dark;
-	background-color: #232323;
-}
+const styles = css`
+	:host {
+		box-sizing: border-box;
+		isolation: isolate;
+		position: relative;
+		color-scheme: dark;
+		background-color: #232323;
+	}
 
-:host(:not([hidden], [popover])) {
-	display: block;
-}
+	:host(:not([hidden], [popover])) {
+		display: block;
+	}
 
-summary {
-	cursor: pointer;
-}
+	summary {
+		cursor: pointer;
+	}
 
-#opts summary {
-	list-style: none;
+	#opts summary {
+		list-style: none;
+		display: none;
+	}
+
+	#opts summary::marker,
+	#opts summary::-webkit-details-marker {
 	display: none;
-}
-
-#opts summary::marker,
-#opts summary::-webkit-details-marker {
-  display: none;
-}
-
-input[type="checkbox"] {
-	height: 2.3em;
-	width: 2.3em;
-}
-
-.block {
-	display: block;
-}
-
-.fixed {
-	position: fixed;
-}
-
-.absolute {
-	position: absolute;
-}
-
-.top {
-	top: 0;
-}
-
-.bottom {
-	bottom: 0;
-}
-
-.full-width {
-	width: 100%;
-}
-
-.no-border {
-	border: none;
-}
-
-.input {
-	width: 100%;
-	padding: 0.5em 0.8em;
-	margin-block: 0.4em;
-	box-sizing: border-box;
-	font-size: inherit;
-}
-
-.visually-hidden {
-	visibility: hidden;
-	display: inline-block;
-	width: 0;
-	height: 0;
-}
-
-select.input {
-	background-color: transparent;
-	border-width: 0 0 2px 0;
-}
-
-.btn svg {
-	height: 64px;
-	width: auto;
-}
-
-.canvas {
-	width: 100%;
-	height: auto;
-	max-width: 100vw;
-	max-height: 100vh;
-	max-height: 100dvh;
-	object-fit: contain;
-	margin: 0;
-	padding: 0;
-	border: none;
-}
-
-.overlay {
-	width: 100%;
-	background-color: rgba(0, 0, 0, 0.7);
-	color: #dadada;
-	box-sizing: border-box;
-	backdrop-filter: blur(6px);
-}
-
-.panel {
-	display: flex;
-	height: 128px;
-	box-sizing: border-box;
-	justify-content: space-evenly;
-	align-items: center;
-	padding: 12px;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	z-index: 20;
-}
-
-#opts {
-	height: 65px;
-	font-size: 24px;
-	padding: 10px;
-	height: fit-content;
-}
-
-#opts:not([open]) {
-	display: none;
-}
-
-#opts[open] {
-	height: calc(100% - 128px);
-	overflow: auto;
-}
-
-#placeholder {
-	color: #fefefe;
-	padding-block: 60px;
-	font-size: 2em;
-	min-height: 350px;
-	max-height: 80vmin;
-	overflow: auto;
-}
-
-@media (any-pointer: fine) {
-	.overlay {
-		transition: opacity 300ms ease-in-out;
 	}
 
-	:host(:state(--active):not(:hover, :focus-within)) .overlay {
-		opacity: 0.2;
-	}
-}
-
-@media (orientation: portrait) {
-	:host(:fullscreen) canvas {
-		margin-top: 65px;
+	input[type="checkbox"] {
+		height: 2.3em;
+		width: 2.3em;
 	}
 
-	.panel {
-		height: 96px;
+	.block {
+		display: block;
 	}
 
-	#opts[open] {
-		height: calc(100% - 96px);
+	.fixed {
+		position: fixed;
+	}
+
+	.absolute {
+		position: absolute;
+	}
+
+	.top {
+		top: 0;
+	}
+
+	.bottom {
+		bottom: 0;
+	}
+
+	.full-width {
+		width: 100%;
+	}
+
+	.no-border {
+		border: none;
+	}
+
+	.input {
+		width: 100%;
+		padding: 0.5em 0.8em;
+		margin-block: 0.4em;
+		box-sizing: border-box;
+		font-size: inherit;
+	}
+
+	.icon {
+		height: 1em;
+		width: auto;
+		vertical-align: middle;
+	}
+
+	.visually-hidden {
+		visibility: hidden;
+		display: inline-block;
+		width: 0;
+		height: 0;
+	}
+
+	select.input {
+		background-color: transparent;
+		border-width: 0 0 2px 0;
 	}
 
 	.btn svg {
-		height: 48px;
-		width: 48px;
+		height: 64px;
+		width: auto;
 	}
-}
 
-.btn, ::slotted(button[slot="controls"]) {
-	background-color: transparent;
-	color: inherit;
-	border: none;
-	padding: 0;
-	cursor: pointer;
-}
+	.canvas {
+		width: 100%;
+		height: auto;
+		max-width: 100vw;
+		max-height: 100vh;
+		max-height: 100dvh;
+		object-fit: contain;
+		margin: 0;
+		padding: 0;
+		border: none;
+	}
 
-.btn:disabled, ::slotted(button[slot="ccontrols"]:disabled) {
-	display: none;
-}
+	.overlay {
+		width: 100%;
+		background-color: rgba(0, 0, 0, 0.7);
+		color: #dadada;
+		box-sizing: border-box;
+		backdrop-filter: blur(6px);
+	}
 
-:host(:state(--inactive)) .when-active {
-	display: none;
-}
+	.panel {
+		display: flex;
+		height: 128px;
+		box-sizing: border-box;
+		justify-content: space-evenly;
+		align-items: center;
+		padding: 12px;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: 20;
+	}
 
-:host(:state(--active)) .when-inactive {
-	display: none;
-}
+	#opts {
+		height: 65px;
+		font-size: 24px;
+		padding: 10px;
+		height: fit-content;
+	}
 
-:host(:popover-open) {
-	border: none;
-	max-width: 100vw;
-	max-height: 100dvh;
-	position: fixed;
-	inset: 0 0 0 0;
-}
+	#opts:not([open]) {
+		display: none;
+	}
 
-:host(:popover-open) #exit-fullscreen {
-	display: none;
-}
+	#opts[open] {
+		height: calc(100% - 128px);
+		overflow: auto;
+	}
 
-:host(:popover-open)::backdrop {
-	background-color: rgba(0, 0, 0, 0.8);
-	backdrop-filter: blur(4px);
-}`;
+	#placeholder {
+		color: #fefefe;
+		padding-block: 60px;
+		font-size: 2em;
+		min-height: 350px;
+		max-height: 80vmin;
+		overflow: auto;
+	}
+
+	#instructions {
+		font-size: clamp(18px, 2.4vmin, 24px);
+		padding: 1.3em;
+		text-align: center;
+	}
+
+	@media (any-pointer: fine) {
+		.overlay {
+			transition: opacity 300ms ease-in-out;
+		}
+
+		:host(:state(--active):not(:hover, :focus-within)) .overlay {
+			opacity: 0.2;
+		}
+	}
+
+	@media (orientation: portrait) {
+		:host(:fullscreen) canvas {
+			margin-top: 65px;
+		}
+
+		.panel {
+			height: 96px;
+		}
+
+		#opts[open] {
+			height: calc(100% - 96px);
+		}
+
+		.btn svg {
+			height: 48px;
+			width: 48px;
+		}
+	}
+
+	.btn, ::slotted(button[slot="controls"]) {
+		background-color: transparent;
+		color: inherit;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+	}
+
+	.btn:disabled, ::slotted(button[slot="ccontrols"]:disabled) {
+		display: none;
+	}
+
+	:host(:state(--inactive)) .when-active {
+		display: none;
+	}
+
+	:host(:state(--active)) .when-inactive {
+		display: none;
+	}
+
+	:host(:popover-open) {
+		border: none;
+		max-width: 100vw;
+		max-height: 100dvh;
+		position: fixed;
+		inset: 0 0 0 0;
+	}
+
+	:host(:popover-open) #exit-fullscreen {
+		display: none;
+	}
+
+	:host(:popover-open)::backdrop {
+		background-color: rgba(0, 0, 0, 0.8);
+		backdrop-filter: blur(4px);
+	}
+`;
 
 customElements.define('photo-booth', HTMLPhotoBoothElement);
