@@ -3,8 +3,9 @@ import { warningHandler as onwarn } from '@shgysk8zer0/js-utils/rollup';
 import { rollupImport } from '@shgysk8zer0/rollup-import/import';
 import terser from '@rollup/plugin-terser';
 import { rollupImportMeta } from '@shgysk8zer0/rollup-import/meta';
-import { importmap } from './importmap.js';
+// import { importmap } from './importmap.js';
 import { readJSONFile } from '@shgysk8zer0/npm-utils/json';
+import { importmap } from '@shgysk8zer0/importmap';
 
 const { name, version } = await readJSONFile('./package.json');
 const url = new URL(`./${name}@${version}/`, 'https://unpkg.com').href;
@@ -36,4 +37,12 @@ export default [{
 	input: './mark-down.js',
 	onwarn, plugins, external,
 	output: { file: './mark-down.min.js', ...config },
+}, {
+	input: './photo-booth.js',
+	onwarn, plugins, external,
+	output: { file: './photo-booth.min.js', ...config },
+}, {
+	input: './scroll-snap.js',
+	onwarn, plugins, external,
+	output: { file: './scroll-snap.min.js', ...config },
 }];

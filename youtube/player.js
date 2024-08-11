@@ -101,6 +101,7 @@ registerCustomElement('youtube-player', class HTMLYouTubePlayerElement extends H
 			}
 
 			const iframe = createYouTubeEmbed(video, { width, height, credentialless, start, controls });
+			iframe.part.add('embed');
 
 			const prom = loaded(iframe).then(() => this.dispatchEvent(new Event('ready')));
 

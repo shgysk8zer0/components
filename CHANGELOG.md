@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.11] - 2024-08-11
+
+### Added
+- Add `<scroll-snap>`
+- Add `<timezone-select>`
+- Add `<style-sheet>`
+
+### Changed
+- Use module to save in `<photo-booth>`
+- Use importmap from `@shgysk8zer0/importmap`
+- Add `part="embed"` to embed on `<youtube-player>`
+
 ## [v0.3.10] - 2024-07-11
 
 ### Fixed
