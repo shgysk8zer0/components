@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Update and simplify some logic in `<scroll-snap>`
+
+## [v0.3.12] - 2024-08-12
+
+### Changed
+- Numerous changes/enhancements to `<scroll-snap>`
+
 ## [v0.3.11] - 2024-08-11
 
 ### Added

@@ -66,6 +66,7 @@ const styles = css`
 
 	::slotted(*) {
 		scroll-snap-align: var(--snap-align, ${ALIGN});
+		align-items: stretch;
 		display: inline-block;
 		overflow: auto;
 		flex-basis: 1fr;
@@ -112,8 +113,8 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 
 	connectedCallback() {
 		this.#controller = new AbortController();
-		this.#slot.assignedElements().forEach(el => this.#observer.observe(el));
-		this.addEventListener('click', this.next.bind(this), { passive: true, signal: this.#controller.signal });
+		const slotted = this.#slot.assignedElements();
+		slotted.forEach(el => this.#observer.observe(el));
 		this.#slot.addEventListener('slotchange', this.#slotChangeHandler.bind(this), { signal: this.#controller.signal });
 		this.#connected.resolve(this);
 	}
@@ -122,6 +123,14 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 		this.#controller.abort();
 		this.#observer.disconnect();
 		this.#connected = Promise.withResolvers();
+	}
+
+	get [Symbol.toStringTag]() {
+		return 'HTMLScrollSnapElement';
+	}
+
+	[Symbol.iterator]() {
+		return this.#slot.assignedElements().values();
 	}
 
 	get align() {
@@ -207,23 +216,43 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 	}
 
 	async addImage(src, {
-		id,
-		width,
-		height,
-		alt = '',
-		loading = 'lazy',
-		decoding = 'async',
-		fetchPriority = 'low',
-		crossOrigin = 'anonymous',
-		referrerPolicy = 'no-referrer',
-		classList = null,
+		type, // For `<canvas>` and raw bytes
+		quality, // For `<canvas>`
+		loading = 'lazy', // Keep separate due to issue lazy-loading from blobs
+		...rest
 	} = {}) {
 		if (src instanceof HTMLImageElement) {
-			this.append(src.cloneNode());
+			const img = src.cloneNode();
+			this.append(img);
+			return img;
+		} else if (src instanceof SVGSVGElement) {
+			const svg = src.cloneNode(true);
+			this.append(svg);
+			return svg;
+		} else if (src instanceof HTMLCanvasElement) {
+			const { promise, resolve, reject } = Promise.withResolvers();
+
+			src.toBlob(blob => {
+				if (blob instanceof Blob) {
+					resolve(blob);
+				} else {
+					reject(new Error('Could not convert canvas to blob.'));
+				}
+			}, { type, quality });
+
+			return this.addImage(await promise, { loading: 'eager', ...rest });
+		} else if (src instanceof Request) {
+			return this.addImage(await fetch(src), {loading: 'eager',...rest });
+		} else if (src instanceof Response) {
+			return this.addImage(await src.blob(), { loading: 'eager', ...rest });
+		} else if ((src instanceof Uint8Array || src instanceof ArrayBuffer) && typeof type === 'string') {
+			return this.addImage(URL.createObjectURL(new Blob([src], { type })), { loading: 'eager', ...rest });
+		} else if (src instanceof Blob) {
+			return this.addImage(URL.createObjectURL(src), { loading: 'eager', ...rest });
 		} else if (typeof src !== 'string' && ! (src instanceof URL)) {
 			throw new TypeError('Image source must be a URL or string.');
 		} else {
-			const img = createImage(src, { width, height, alt, id, classList, loading, decoding, fetchPriority, crossOrigin, referrerPolicy });
+			const img = createImage(src, { loading, ...rest });
 
 			this.append(img);
 			await img.decode();
@@ -231,15 +260,15 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 		}
 	}
 
-	next() {
-		this.#scrollTo(this.nextElement);
+	async next() {
+		await this.scrollTo(this.nextElement);
 	}
 
-	prev() {
-		this.#scrollTo(this.previousElement);
+	async prev() {
+		await this.scrollTo(this.previousElement);
 	}
 
-	go(index) {
+	async go(index) {
 		if (! Number.isSafeInteger(index)) {
 			throw new TypeError('Index must be an integer.');
 		} else {
@@ -248,9 +277,23 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 			if (! (item instanceof Element)) {
 				throw new RangeError('Invalid index.');
 			} else {
-				this.#scrollTo(item);
+				await this.scrollTo(item);
 				return item;
 			}
+		}
+	}
+
+	async scrollTo(child) {
+		if (! (child instanceof Element)) {
+			throw new TypeError('Cannot scroll to a non-element.');
+		} else if (! this.contains(child)) {
+			throw new TypeError('Not a child of this element and cannot scroll to it.');
+		} else {
+			await this.#connected.promise;
+			child.scrollIntoView({ behavior: this.behavior, [this.type]: this.align });
+			this.#current = child;
+			// Prevents IntersectionObserver from handling the update
+			this.#skipNextUpdate = true;
 		}
 	}
 
@@ -262,17 +305,17 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 
 		// Prevents updates mid-scrolling
 		this.#updateTimeout = setTimeout(() => {
+			this.#updateTimeout = NaN;
+
 			if (this.#skipNextUpdate === true) {
 				this.#skipNextUpdate = false;
-			} else if (document.visibilityState === 'hidden' || records.length === 0) {
-				this.#updateTimeout = NaN;
-			} else {
-				this.#updateTimeout = NaN;
+			} else if (document.visibilityState !== 'hidden' && records.length !== 0) {
+				const findCb = this.#findVisible.bind(this);
 
 				// Current will mean different things based on `align`
 				switch (this.align) {
 					case 'start':
-						this.#current = records.find(entry => entry.isIntersecting && !entry.target.isSameNode(this.#current))?.target ?? records[0].target;
+						this.#current = records.find(findCb)?.target ?? records[0].target;
 						break;
 
 					case 'center':
@@ -280,8 +323,8 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 							this.#current = records[0].target;
 						} else {
 							// Find the element between the first and last visible elements
-							const first = records.findIndex(entry => entry.isIntersecting && !entry.target.isSameNode(this.#current));
-							const last = records.findLastIndex(entry => entry.isIntersecting && !entry.target.isSameNode(this.#current));
+							const first = records.findIndex(findCb);
+							const last = records.findLastIndex(findCb);
 
 							if (first !== -1 && last !== -1) {
 								const middle = Math.round((first + last) / 2);
@@ -295,7 +338,7 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 						break;
 
 					case 'end':
-						this.#current = records.findLast(entry => entry.isIntersecting && !entry.target.isSameNode(this.#current))?.target ?? records[0].target;
+						this.#current = records.findLast(findCb)?.target ?? records[0].target;
 						break;
 
 					default:
@@ -305,18 +348,27 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 		}, 100);
 	}
 
-	#slotChangeHandler({ target }) {
-		target.assignedElements().forEach(el => this.#observer.observe(el));
+	#slotChangeHandler() {
+		this.#slot.assignedElements().forEach(el => this.#observer.observe(el));
 	}
 
-	async #scrollTo(child) {
-		if (child instanceof Element) {
-			await this.#connected.promise;
-			child.scrollIntoView({ behavior: this.behavior, [this.type]: this.align });
-			this.#current = child;
-			// Prevents IntersectionObserver from handling the update
-			this.#skipNextUpdate = true;
+	#findVisible(entry) {
+		return entry.isIntersecting && !entry.target.isSameNode(this.#current);
+	}
 
+	static create({ align = ALIGN, type = TYPE, behavior, children } = {}) {
+		const el = new HTMLScrollSnapElement();
+		el.align = align;
+		el.type = type;
+
+		if (typeof behavior !== 'undefined') {
+			el.behavior = behavior;
 		}
+
+		if (Array.isArray(children)) {
+			el.append(...children);
+		}
+
+		return el;
 	}
 });
