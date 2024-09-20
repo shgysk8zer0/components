@@ -64,6 +64,7 @@
   "devDependencies": {
     "@shgysk8zer0/core-css": "^2.5.0",
     "@shgysk8zer0/css-utils": "^1.0.0",
+    "@shgysk8zer0/eslint-config": "^1.0.1",
     "@shgysk8zer0/importmap": "^1.4.2",
     "@shgysk8zer0/js-utils": "^1.0.1",
     "@shgysk8zer0/jss": "^1.0.1",
