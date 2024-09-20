@@ -5,12 +5,12 @@ const part = ['embed'];
 
 class HTMLGoogleCalendarElement extends HTMLElement {
 	#shadow;
-	#internals;
+	// #internals;
 
 	constructor() {
 		super();
 		this.#shadow = this.attachShadow({ mode: 'closed' });
-		this.#internals = this.attachInternals();
+		// this.#internals = this.attachInternals();
 	}
 
 	connectedCallback() {
