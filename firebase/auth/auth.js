@@ -34,8 +34,8 @@ export const styles = Promise.all([
 ]);
 
 export class HTMLFirebaseAuthElement extends HTMLElement {
-	#shadow;
-	#internals;
+	// #shadow;
+	// #internals;
 
 	static observedAttributes = ['disabled'];
 
