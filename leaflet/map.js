@@ -15,6 +15,7 @@ import {
 } from '@shgysk8zer0/kazoo/icons.js';
 
 import styles from './map.css.js';
+import { getGeohashBounds, encodeGeohash } from '@shgysk8zer0/geoutils';
 
 import {
 	map as LeafletMap,
@@ -642,6 +643,18 @@ HTMLCustomElement.register('leaflet-map', class HTMLLeafletMapElement extends HT
 		setBool(this, 'detectretina', val);
 	}
 
+	get geohash() {
+		if (this.hasAttribute('geohash')) {
+			return this.getAttribute('geohash');
+		} else {
+			return encodeGeohash(this.center);
+		}
+	}
+
+	set geohash(val) {
+		setString(this, 'geohash', val);
+	}
+
 	get zoom() {
 		return getInt(this, 'zoom', { fallback: 13 });
 	}
@@ -1145,6 +1158,14 @@ HTMLCustomElement.register('leaflet-map', class HTMLLeafletMapElement extends HT
 				});
 				break;
 
+			case 'geohash':
+				this.ready.then(() => {
+					const { latitude: lat, longitude: lng } = getGeohashBounds(newVal);
+					const { map } = protectedData.get(this);
+					map.fitBounds([[lat.min, lng.min], [lat.max, lng.max]]);
+				});
+				break;
+
 			case 'loading':
 				this.lazyLoad(newVal === 'lazy');
 				break;
@@ -1256,6 +1277,7 @@ HTMLCustomElement.register('leaflet-map', class HTMLLeafletMapElement extends HT
 		return [
 			'zoom',
 			'center',
+			'geohash',
 			'loading',
 			'minzoom',
 			'maxzoom',
