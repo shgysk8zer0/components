@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.14] - 2024-12-24
+
 ### Added
 - Add support for geohashes in `<leaflet-map>`
 - Add next/prev & keyboard navigation to `<scroll-snap>`
