@@ -62,15 +62,15 @@
   },
   "homepage": "https://github.com/shgysk8zer0/components#readme",
   "devDependencies": {
-    "@shgysk8zer0/core-css": "^2.5.0",
-    "@shgysk8zer0/css-utils": "^1.0.0",
-    "@shgysk8zer0/eslint-config": "^1.0.1",
+    "@shgysk8zer0/core-css": "^2.5.4",
+    "@shgysk8zer0/css-utils": "^1.2.0",
+    "@shgysk8zer0/eslint-config": "^1.0.3",
     "@shgysk8zer0/geoutils": "^1.0.1",
-    "@shgysk8zer0/importmap": "^1.4.2",
-    "@shgysk8zer0/js-utils": "^1.0.1",
+    "@shgysk8zer0/importmap": "^1.4.32",
+    "@shgysk8zer0/js-utils": "^1.0.2",
     "@shgysk8zer0/jss": "^1.0.1",
-    "@shgysk8zer0/polyfills": "^0.4.0",
-    "@shgysk8zer0/rollup-import": "^1.2.3",
+    "@shgysk8zer0/polyfills": "^0.4.8",
+    "@shgysk8zer0/rollup-import": "^1.2.5",
     "htmlhint": "^1.1.4",
     "http-server": "^14.1.1",
     "string-dedent": "^3.0.1"
@@ -78,7 +78,7 @@
   "peerDependencies": {
     "@highlightjs/cdn-assets": "^11.8.0",
     "@shgysk8zer0/jswaggersheets": "^1.1.0",
-    "@shgysk8zer0/kazoo": "^0.3.1",
+    "@shgysk8zer0/kazoo": "^1.0.9",
     "leaflet": "^1.9.4",
     "marked": "^5.1.1",
     "marked-highlight": "^2.0.1"
