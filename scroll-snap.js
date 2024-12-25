@@ -1,5 +1,8 @@
 import { createImage } from '@shgysk8zer0/kazoo/elements.js';
 import { css } from '@aegisjsproject/parsers/css.js';
+import { svg } from '@aegisjsproject/parsers/svg.js';
+
+const _between = (min, val, max) => ! (val > max || val < min);
 
 const ALIGN = 'start';
 const TYPE = 'inline';
@@ -64,6 +67,38 @@ const styles = css`
 		scroll-behavior: var(--scroll-behavior, ${BEHAVIOR});
 	}
 
+	.overlay {
+		position: relative;
+		z-index: 2;
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+
+	.btn.fixed {
+		position: fixed;
+		z-index: 2;
+		top: 0;
+		bottom: 0;
+		height: 100%;
+		width: 5em;
+		background-color: rgba(0, 0, 0, 0.7);
+		backdrop-filter: blur(4px);
+		border: none;
+		padding: 20px;
+		opacity: 1;
+		transition: opacity 150ms ease-out;
+		cursor: pointer;
+	}
+
+	.btn.fixed.prev-btn {
+		left: 0;
+	}
+
+	.btn.fixed.next-btn {
+		right: 0;
+	}
+
 	::slotted(*) {
 		scroll-snap-align: var(--snap-align, ${ALIGN});
 		align-items: stretch;
@@ -83,45 +118,134 @@ const styles = css`
 			--scroll-behavior: auto;
 		}
 	}
+
+	@media (any-pointer: fine) {
+		:host(:not(:hover, :focus-within)) .btn.fixed {
+			opacity: 0;
+		}
+	}
 `;
+
+const nextIcon = svg`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="32" viewBox="0 0 8 16" fill="currentColor" role="presentation" aria-hidden="true">
+	<path fill-rule="evenodd" d="M7.5 8l-5 5L1 11.5 4.75 8 1 4.5 2.5 3l5 5z"/>
+</svg>`;
+
+const prevIcon = svg`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="32" viewBox="0 0 8 16" fill="currentColor" role="presentation" aria-hidden="true">
+	<path fill-rule="evenodd" d="M5.5 3L7 4.5 3.25 8 7 11.5 5.5 13l-5-5 5-5z"/>
+</svg>`;
 
 customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLElement {
 	#shadow;
 	#container;
 	#slot;
 	#current = null;
-	#observer;
-	#updateTimeout = NaN;
-	#controller;
-	#skipNextUpdate = false;
+	#nextBtn;
+	#prevBtn;
 	#connected = Promise.withResolvers();
 	static #prefersReducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 	constructor() {
 		super();
 
-		this.#shadow = this.attachShadow({ mode: 'closed' });
+		this.#shadow = this.attachShadow({ mode: 'closed', delegatesFocus: true });
 		this.#container = document.createElement('div');
 		this.#slot = document.createElement('slot');
-		this.#observer = new IntersectionObserver(this.#updateCurrent.bind(this), { root: this });
 		this.#container.part.add('container');
 		this.#container.classList.add('container');
+		this.#nextBtn = document.createElement('button');
+		this.#prevBtn = document.createElement('button');
+		this.#nextBtn.type = 'button';
+		this.#nextBtn.title = 'Next';
+		this.#nextBtn.ariaLabel = 'Next';
+		this.#nextBtn.append(nextIcon.cloneNode(true));
+		this.#nextBtn.classList.add('btn', 'next-btn', 'fixed');
+		this.#nextBtn.part.add('btn', 'next-btn');
+		this.#nextBtn.addEventListener('click', this.next.bind(this), { passive: true });
+		this.#prevBtn.addEventListener('click', this.prev.bind(this), { passive: true });
+		this.#prevBtn.type = 'button';
+		this.#prevBtn.title = 'Previous';
+		this.#prevBtn.ariaLabel = 'Previous';
+		this.#prevBtn.append(prevIcon.cloneNode(true));
+		this.#prevBtn.classList.add('btn', 'prev-btn', 'fixed');
+		this.#prevBtn.part.add('btn', 'prev-btn');
+		this.addEventListener('keydown', event => {
+			if ((event.metaKey && event.key !== 'Meta') || (event.ctrlKey && event.key !== 'Control')) {
+				switch(event.key) {
+					case 'ArrowUp':
+					case 'ArrowLeft':
+					case '<':
+						event.currentTarget.scrollToFirst();
+						event.preventDefault();
+						break;
+
+					case 'ArrowDown':
+					case 'ArrowRight':
+					case '>':
+						event.currentTarget.scrollToLast();
+						event.preventDefault();
+						break;
+				}
+			} else {
+				switch(event.key) {
+					case 'ArrowDown':
+					case 'ArrowRight':
+					case '>':
+						event.currentTarget.next();
+						event.preventDefault();
+						break;
+
+					case 'ArrowUp':
+					case 'ArrowLeft':
+					case '<':
+						event.currentTarget.prev();
+						event.preventDefault();
+						break;
+
+					case '[':
+						event.currentTarget.scrollToFirst();
+						break;
+
+					case ']':
+						event.currentTarget.scrollToLast();
+						break;
+				}
+			}
+		});
 		this.#shadow.adoptedStyleSheets = [styles];
+
+		this.#container.addEventListener('scrollend', event => {
+			// @todo Better handle finding current at edges and handle `align`
+			const { scrollLeft, scrollTop } = event.target;
+			const slotted = this.#slot.assignedElements();
+			const visible = slotted.filter((el) =>
+				! el.isSameNode(this.#current)
+				&& _between(scrollLeft, el.offsetLeft, scrollLeft + el.offsetWidth)
+				&& _between(scrollTop, el.offsetTop, scrollTop + el.offsetHeight)
+			);
+
+			if (visible.length === 1) {
+				this.#current = visible[0];
+			} else if (visible.length !== 0) {
+				this.#current = visible[Math.ceil((visible.length - 1) / 2)];
+			} else {
+				this.#current = this.#current.nextElementSibling instanceof Element
+					? this.#current.nextElementSibling
+					: slotted[0];
+			}
+		});
+
+		const btnOveraly = document.createElement('div');
+		btnOveraly.classList.add('overlay');
+		btnOveraly.append(this.#prevBtn, this.#nextBtn);
 		this.#container.append(this.#slot);
-		this.#shadow.append(this.#container);
+		this.#shadow.append(this.#container, btnOveraly);
 	}
 
 	connectedCallback() {
-		this.#controller = new AbortController();
-		const slotted = this.#slot.assignedElements();
-		slotted.forEach(el => this.#observer.observe(el));
-		this.#slot.addEventListener('slotchange', this.#slotChangeHandler.bind(this), { signal: this.#controller.signal });
 		this.#connected.resolve(this);
 	}
 
 	disconnectedCallback() {
-		this.#controller.abort();
-		this.#observer.disconnect();
 		this.#connected = Promise.withResolvers();
 	}
 
@@ -261,11 +385,50 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 	}
 
 	async next() {
-		await this.scrollTo(this.nextElement);
+		await this.#connected.promise;
+		const lastEl = this.#slot.assignedNodes().at(-1);
+
+		if (this.#current instanceof Element && this.#current.isSameNode(lastEl)) {
+			await this.scrollToFirst();
+		} else {
+			const { height, width } = this.getBoundingClientRect(this.#current ?? this.#container);
+
+			if (this.type === 'inline') {
+				await this.scrollBy({ left: width });
+			} else {
+				this.scrollBy({ top: height });
+			}
+		}
 	}
 
 	async prev() {
-		await this.scrollTo(this.previousElement);
+		await this.#connected.promise;
+		const firstEl = this.#slot.assignedElements()[0];
+
+		if (this.#current instanceof Element && this.#current.isSameNode(firstEl)) {
+			await this.scrollToLast();
+		} else {
+			const { height = 300, width = 300 } = this.getBoundingClientRect(this.#current);
+
+			if (this.type === 'inline') {
+				await this.scrollBy({ left: -width });
+			} else {
+				this.scrollBy({ top: -height });
+			}
+		}
+	}
+
+	async scrollToFirst() {
+		await this.scrollTo(this.type === 'inline' ? { left: 0 } : { top: 0 });
+	}
+
+	async scrollToLast() {
+		await this.scrollTo(this.type === 'inline' ? { left: this.#container.scrollWidth } : { top: this.#container.scrollHeight });
+	}
+
+	async scrollTo({ top = 0, left = 0 }) {
+		await this.#connected.promise;
+		this.#container.scrollTo({ top, left, behavior: this.behavior });
 	}
 
 	async go(index) {
@@ -277,13 +440,13 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 			if (! (item instanceof Element)) {
 				throw new RangeError('Invalid index.');
 			} else {
-				await this.scrollTo(item);
+				await this.scrollIntoView(item);
 				return item;
 			}
 		}
 	}
 
-	async scrollTo(child) {
+	async scrollIntoView(child) {
 		if (! (child instanceof Element)) {
 			throw new TypeError('Cannot scroll to a non-element.');
 		} else if (! this.contains(child)) {
@@ -292,68 +455,13 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 			await this.#connected.promise;
 			child.scrollIntoView({ behavior: this.behavior, [this.type]: this.align });
 			this.#current = child;
-			// Prevents IntersectionObserver from handling the update
-			this.#skipNextUpdate = true;
 		}
 	}
 
-	#updateCurrent(records) {
-		if (! Number.isNaN(this.#updateTimeout)) {
-			clearTimeout(this.#updateTimeout);
-			this.#updateTimeout = NaN;
-		}
-
-		// Prevents updates mid-scrolling
-		this.#updateTimeout = setTimeout(() => {
-			this.#updateTimeout = NaN;
-
-			if (this.#skipNextUpdate === true) {
-				this.#skipNextUpdate = false;
-			} else if (document.visibilityState !== 'hidden' && records.length !== 0) {
-				const findCb = this.#findVisible.bind(this);
-
-				// Current will mean different things based on `align`
-				switch (this.align) {
-					case 'start':
-						this.#current = records.find(findCb)?.target ?? records[0].target;
-						break;
-
-					case 'center':
-						if (records.length === 1 && records[0].isIntersecting) {
-							this.#current = records[0].target;
-						} else {
-							// Find the element between the first and last visible elements
-							const first = records.findIndex(findCb);
-							const last = records.findLastIndex(findCb);
-
-							if (first !== -1 && last !== -1) {
-								const middle = Math.round((first + last) / 2);
-								this.#current = records[middle].target;
-							} else if (first === -1) {
-								this.#current = records[last].target;
-							} else {
-								this.#current = records[first].target;
-							}
-						}
-						break;
-
-					case 'end':
-						this.#current = records.findLast(findCb)?.target ?? records[0].target;
-						break;
-
-					default:
-						console.warn(new Error(`Unsupported align value of ${this.align}.`));
-				}
-			}
-		}, 100);
-	}
-
-	#slotChangeHandler() {
-		this.#slot.assignedElements().forEach(el => this.#observer.observe(el));
-	}
-
-	#findVisible(entry) {
-		return entry.isIntersecting && !entry.target.isSameNode(this.#current);
+	async scrollBy({ top = 0, left = 0 }) {
+		const behavior = this.behavior;
+		await this.#connected.promise;
+		this.#container.scrollBy({ top, left, behavior });
 	}
 
 	static create({ align = ALIGN, type = TYPE, behavior, children } = {}) {
