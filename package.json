@@ -1,6 +1,6 @@
 {
   "name": "@shgysk8zer0/components",
-  "version": "0.3.14",
+  "version": "0.3.15",
   "description": "A collection of custom elements / web components",
   "private": false,
   "type": "module",

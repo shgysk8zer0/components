@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.15] - 2025-01-03
+
+### Added
+- Add `geo:` URI support to `<leaflet-map`>
+- Add `delay` (timed scrolling) to `<scroll-snap>`
+
+### Fixed
+- Improve start/end/current handling in `<scroll-snap>`
+
 ## [v0.3.14] - 2024-12-24
 
 ### Added

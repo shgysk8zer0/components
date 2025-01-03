@@ -1,5 +1,5 @@
 import { debounce } from '@shgysk8zer0/kazoo/utility.js';
-import { getLocation } from '@shgysk8zer0/kazoo/geo.js';
+// import { getLocation } from '@shgysk8zer0/kazoo/geo.js';
 import { on, off, query } from '@shgysk8zer0/kazoo/dom.js';
 import { createElement } from '@shgysk8zer0/kazoo/elements.js';
 import { loadStyleSheet } from '@shgysk8zer0/kazoo/loader.js';
@@ -8,6 +8,7 @@ import { getCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
 import HTMLCustomElement from '../custom-element.js';
 import { MARKER_TYPES } from './marker-types.js';
 import { TILES } from './tiles.js';
+import { getCurrentPosition, parseGeoURI, createGeoURI } from '@shgysk8zer0/geoutils';
 import { getBool, setBool, getInt, setInt, getString, setString } from '@shgysk8zer0/kazoo/attrs.js';
 import {
 	createFindLocationIcon, createZoomInIcon, createZoomOutIcon,
@@ -489,7 +490,7 @@ HTMLCustomElement.register('leaflet-map', class HTMLLeafletMapElement extends HT
 								event.preventDefault();
 
 								const [{ coords }, LeafletMarker] = await Promise.all([
-									getLocation({ enableHighAccuracy: true }),
+									getCurrentPosition({ enableHighAccuracy: true }),
 									getCustomElement('leaflet-marker'),
 								]);
 
@@ -655,6 +656,21 @@ HTMLCustomElement.register('leaflet-map', class HTMLLeafletMapElement extends HT
 		setString(this, 'geohash', val);
 	}
 
+	get geo() {
+		const uri = this.getGeoURI();
+		return uri.href;
+	}
+
+	set geo(val) {
+		if (typeof val === 'string') {
+			this.geo = URL.parse(val);
+		} else if (! (val instanceof URL && val.protocol === 'geo:')) {
+			throw new TypeError(`Invalid geo URI: ${val}`);
+		} else {
+			this.setAttribute('geo', val.href);
+		}
+	}
+
 	get zoom() {
 		return getInt(this, 'zoom', { fallback: 13 });
 	}
@@ -770,7 +786,7 @@ HTMLCustomElement.register('leaflet-map', class HTMLLeafletMapElement extends HT
 	}
 
 	get coords() {
-		return getLocation({ enableHighAccuracy: true }).then(({ coords }) => {
+		return getCurrentPosition({ enableHighAccuracy: true }).then(({ coords }) => {
 			this.dispatchEvent(new CustomEvent('location', { details: coords }));
 			return coords;
 		});
@@ -804,7 +820,7 @@ HTMLCustomElement.register('leaflet-map', class HTMLLeafletMapElement extends HT
 		const [
 			{ coords: { latitude: lat, longitude: lng }},
 		] = await Promise.all([
-			getLocation({ maximumAge, timeout, signal, enableHighAccuracy }),
+			getCurrentPosition({ maximumAge, timeout, signal, enableHighAccuracy }),
 			customElements.whenDefined('leaflet-marker'),
 		]);
 
@@ -856,6 +872,16 @@ HTMLCustomElement.register('leaflet-map', class HTMLLeafletMapElement extends HT
 			this.map.flyTo([latitude, longitude], zoom);
 		} else {
 			this.map.flyTo([latitude, longitude]);
+		}
+	}
+
+	getGeoURI({ accuracy, label: query, type } = {}) {
+		if (protectedData.has(this)) {
+			const { lat: latitude, lng: longitude } = this.map.getCenter();
+			const zoom = this.zoom;
+			return createGeoURI({ latitude, longitude, accuracy }, { zoom, query, type });
+		} else {
+			return null;
 		}
 	}
 
@@ -1166,6 +1192,34 @@ HTMLCustomElement.register('leaflet-map', class HTMLLeafletMapElement extends HT
 				});
 				break;
 
+			case 'geo':
+				if (typeof newVal === 'string' && newVal.startsWith('geo:') && URL.canParse(newVal)) {
+					const uri = new URL(newVal);
+
+					Promise.all([
+						customElements.whenDefined('leaflet-marker'),
+						this.whenConnected,
+					]).then(([LeafletMarker]) => {
+						const {
+							coords: { latitude, longitude },
+							params: { zoom = 17, query = 'Marked Location' },
+						} = parseGeoURI(uri);
+
+						if (! (Number.isNaN(longitude) || Number.isNaN(latitude))) {
+							const popup = document.createElement('div');
+							const label = document.createElement('b');
+							const coords = document.createElement('pre');
+							label.textContent = query;
+							coords.textContent = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+							popup.append(label, document.createElement('br'), coords);
+							const marker = new LeafletMarker({ latitude, longitude, popup, icon: createFindLocationIcon(), open: true });
+							marker.id = 'marked-geo-location';
+							this.append(marker);
+							this.flyTo({ latitude, longitude }, zoom);
+						}});
+				}
+				break;
+
 			case 'loading':
 				this.lazyLoad(newVal === 'lazy');
 				break;
@@ -1278,6 +1332,7 @@ HTMLCustomElement.register('leaflet-map', class HTMLLeafletMapElement extends HT
 			'zoom',
 			'center',
 			'geohash',
+			'geo',
 			'loading',
 			'minzoom',
 			'maxzoom',

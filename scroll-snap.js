@@ -1,6 +1,7 @@
 import { createImage } from '@shgysk8zer0/kazoo/elements.js';
 import { css } from '@aegisjsproject/parsers/css.js';
 import { svg } from '@aegisjsproject/parsers/svg.js';
+import { getInt, setInt } from '@shgysk8zer0/kazoo/attrs.js';
 
 const _between = (min, val, max) => ! (val > max || val < min);
 
@@ -142,6 +143,8 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 	#nextBtn;
 	#prevBtn;
 	#connected = Promise.withResolvers();
+	#controller;
+	#interval = NaN;
 	static #prefersReducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 	constructor() {
@@ -211,6 +214,7 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 				}
 			}
 		});
+
 		this.#shadow.adoptedStyleSheets = [styles];
 
 		this.#container.addEventListener('scrollend', event => {
@@ -223,14 +227,18 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 				&& _between(scrollTop, el.offsetTop, scrollTop + el.offsetHeight)
 			);
 
+			if (this.#clearInterval()) {
+				this.#setInterval();
+			}
+
 			if (visible.length === 1) {
-				this.#current = visible[0];
+				this.#setCurrent(visible[0]);
 			} else if (visible.length !== 0) {
-				this.#current = visible[Math.ceil((visible.length - 1) / 2)];
-			} else {
-				this.#current = this.#current.nextElementSibling instanceof Element
+				this.#setCurrent(visible[Math.ceil((visible.length - 1) / 2)]);
+			} else if (this.#current instanceof Element) {
+				this.#setCurrent(this.#current.nextElementSibling instanceof Element
 					? this.#current.nextElementSibling
-					: slotted[0];
+					: slotted[0]);
 			}
 		});
 
@@ -241,12 +249,48 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 		this.#shadow.append(this.#container, btnOveraly);
 	}
 
+	async attributeChangedCallback(name, oldVal, newVal) {
+		switch(name) {
+			case 'delay':
+				if (typeof oldVal === 'string' && ! Number.isNaN(this.#interval)) {
+					clearInterval(this.#interval);
+					this.#interval = NaN;
+				}
+
+				if (typeof newVal === 'string') {
+					await this.whenConnected;
+					this.#interval = setInterval(this.next.bind(this), this.delay);
+					this.#signal.addEventListener('abort', () => {
+						clearInterval(this.#interval);
+					}, { once: true });
+				}
+		}
+	}
+
 	connectedCallback() {
+		this.#abort();
+		this.#controller = new AbortController();
+		this.#current = this.firstElementChild;
 		this.#connected.resolve(this);
 	}
 
 	disconnectedCallback() {
+		this.#abort('Disconnected');
 		this.#connected = Promise.withResolvers();
+
+		if (! Number.isNaN(this.#interval)) {
+			clearInterval(this.#interval);
+			this.#interval = NaN;
+		}
+	}
+
+	#abort(reason) {
+		if (this.#controller instanceof AbortController && ! this.#controller.signal.aborted) {
+			this.#controller.signal.abort(reason);
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	get [Symbol.toStringTag]() {
@@ -289,6 +333,14 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 
 	get current() {
 		return this.#current;
+	}
+
+	get delay() {
+		return getInt(this, 'delay');
+	}
+
+	set delay(val) {
+		setInt(this, 'delay', val, { min: 0 });
 	}
 
 	get nextElement() {
@@ -339,6 +391,18 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 		return this.#connected.promise;
 	}
 
+	// get #aborted() {
+	// 	return this.#signal.aborted;
+	// }
+
+	get #signal() {
+		if (this.#controller instanceof AbortController) {
+			return this.#controller.signal;
+		} else {
+			return AbortSignal.abort('Not connected.');
+		}
+	}
+
 	async addImage(src, {
 		type, // For `<canvas>` and raw bytes
 		quality, // For `<canvas>`
@@ -386,7 +450,7 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 
 	async next() {
 		await this.#connected.promise;
-		const lastEl = this.#slot.assignedNodes().at(-1);
+		const lastEl = this.#slot.assignedElements().at(-1);
 
 		if (this.#current instanceof Element && this.#current.isSameNode(lastEl)) {
 			await this.scrollToFirst();
@@ -428,6 +492,11 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 
 	async scrollTo({ top = 0, left = 0 }) {
 		await this.#connected.promise;
+
+		if (this.#clearInterval()) {
+			this.#setInterval();
+		}
+
 		this.#container.scrollTo({ top, left, behavior: this.behavior });
 	}
 
@@ -440,6 +509,10 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 			if (! (item instanceof Element)) {
 				throw new RangeError('Invalid index.');
 			} else {
+				if (this.#clearInterval()) {
+					this.#setInterval();
+				}
+
 				await this.scrollIntoView(item);
 				return item;
 			}
@@ -453,8 +526,13 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 			throw new TypeError('Not a child of this element and cannot scroll to it.');
 		} else {
 			await this.#connected.promise;
+
+			if (this.#clearInterval()) {
+				this.#setInterval();
+			}
+
 			child.scrollIntoView({ behavior: this.behavior, [this.type]: this.align });
-			this.#current = child;
+			this.#setCurrent(child);
 		}
 	}
 
@@ -462,6 +540,36 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 		const behavior = this.behavior;
 		await this.#connected.promise;
 		this.#container.scrollBy({ top, left, behavior });
+	}
+
+	#clearInterval() {
+		if (! Number.isNaN(this.#interval)) {
+			clearInterval(this.#interval);
+			this.#interval = NaN;
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	#setInterval() {
+		this.#interval = setInterval(this.next.bind(this), this.delay);
+	}
+
+	#setCurrent(el, { direction = 'forwards' } = {}) {
+		if (! (el instanceof Element)) {
+			throw new TypeError('Cannot set current to a non-element.');
+		} else if (! (this.#current instanceof Element) || ! el.isSameNode(this.#current)) {
+			this.#current = el;
+		} else if (direction === 'forward') {
+			this.#setCurrent(this.#current.nextElementSibling ?? this.firstElementChild);
+		} else {
+			this.#setCurrent(this.firstElementChild);
+		}
+	}
+
+	static get observedAttributes() {
+		return ['delay'];
 	}
 
 	static create({ align = ALIGN, type = TYPE, behavior, children } = {}) {
