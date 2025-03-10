@@ -286,7 +286,7 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 
 	#abort(reason) {
 		if (this.#controller instanceof AbortController && ! this.#controller.signal.aborted) {
-			this.#controller.signal.abort(reason);
+			this.#controller.abort(reason instanceof Error ? reason : new Error(reason));
 			return true;
 		} else {
 			return false;

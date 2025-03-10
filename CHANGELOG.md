@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.16] - 2025-03-10
+
+### Fixed
+- Fix aborting of controller in `<scroll-snap>`
+
 ## [v0.3.15] - 2025-01-03
 
 ### Added
