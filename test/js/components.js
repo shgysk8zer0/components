@@ -20,3 +20,4 @@ import '../../window-controls.js';
 import '../../scroll-snap.js';
 import '../../photo-booth.js';
 import '@kernvalley/components/events.js';
+import '../../status-indicator.js';
