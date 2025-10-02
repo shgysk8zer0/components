@@ -12,6 +12,7 @@ import '@shgysk8zer0/polyfills/element.js';
 import '@shgysk8zer0/polyfills/request.js';
 import '@shgysk8zer0/polyfills/response.js';
 import '@shgysk8zer0/polyfills/blob.js';
+import '@shgysk8zer0/polyfills/command.js';
 
 if (! (String.dedent instanceof Function)) {
 	String.dedent = dedent;

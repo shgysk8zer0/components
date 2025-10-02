@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.18] - 2025-10-02
+
+### Changed
+- Refactor `<photo-booth>` to use Command Invoker API
+- Handle `popover` correctly in `<slide-show>`
+- Misc dependency updates
+
 ## [v0.3.17] - 2025-03-11
 
 ### Added
