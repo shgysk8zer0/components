@@ -76,7 +76,7 @@ const styles = css`
 		height: 100%;
 	}
 
-	.btn.fixed {
+	:host(:not(:fullscreen)) .btn.fixed {
 		position: fixed;
 		z-index: 2;
 		top: 0;
