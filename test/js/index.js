@@ -30,26 +30,46 @@ getJSON(import.meta.resolve('../../package.json')).then(({ name, version, descri
 	setDescription(description);
 });
 
-on('window-controls form', 'submit', event => {
+on('window-controls form', 'submit', async event => {
 	event.preventDefault();
-	const data = new FormData(event.target);
-	const match = document.getElementById(data.get('search'));
+	const { target, submitter } = event;
+	const status = document.getElementById('search-status');
 
-	if (match instanceof Element && ! match.hidden) {
-		match.scrollIntoView({ behavior: 'smooth', block: 'end' });
-	} else {
-		const popover = document.createElement('div');
-		popover.popover = 'auto';
-		popover.textContent = `No results for \`#${data.get('search')}\`.`;
-		popover.addEventListener('toggle', ({ target, newState }) => {
-			if (newState === 'closed') {
-				target.remove();
-			}
+	try {
+		submitter.disabled = true;
+		status.reset({ idle: false });
+		const data = new FormData(target);
+		const match = document.getElementById(data.get('search'));
+		await new Promise(resolve => setTimeout(resolve, 1000));
+
+		if (match instanceof Element && ! match.hidden) {
+			match.scrollIntoView({ behavior: 'smooth', block: 'end' });
+			status.resolve();
+		} else {
+			const { resolve, promise } = Promise.withResolvers();
+			const popover = document.createElement('div');
+			popover.popover = 'auto';
+			popover.textContent = `No results for \`#${data.get('search')}\`.`;
+			popover.addEventListener('toggle', ({ target, newState }) => {
+				if (newState === 'closed') {
+					target.remove();
+					resolve();
+				}
+			});
+
+			document.body.append(popover);
+			popover.showPopover();
+			// setTimeout(() => popover.hidePopover(), 3000);
+			status.reject();
+			await promise;
+		}
+	} catch(err) {
+		status.reject(err);
+	} finally {
+		status.finally(() => {
+			submitter.disabled = false;
+			setTimeout(() => status.idle = true, 2000);
 		});
-
-		document.body.append(popover);
-		popover.showPopover();
-		setTimeout(() => popover.hidePopover(), 3000);
 	}
 });
 
@@ -126,6 +146,9 @@ document.querySelectorAll('window-controls [disabled]').forEach(el => el.disable
 
 
 customElements.whenDefined('photo-booth').then(async HTMLPhotoBoothElement => {
+	HTMLPhotoBoothElement.registerCommand('--foo', function() {
+		this.remove();
+	});
 	const photoBooth = await HTMLPhotoBoothElement.loadFromURL('/test/test.json');
 	document.getElementById('main').prepend(photoBooth);
 
@@ -154,18 +177,18 @@ customElements.whenDefined('photo-booth').then(async HTMLPhotoBoothElement => {
 	});
 });
 
-await customElements.whenDefined('event-signup').then(() => {
-	const signup = document.getElementById('reg');
+// await customElements.whenDefined('event-signup').then(() => {
+// 	const signup = document.getElementById('reg');
 
-	signup.addEventListener('complete', ({ detail, target }) => {
-		console.log(detail);
-		target.reset();
-	});
+// 	signup.addEventListener('complete', ({ detail, target }) => {
+// 		console.log(detail);
+// 		target.reset();
+// 	});
 
-	signup.addEventListener('reset', ({ target }) => {
-		target.hidePopover();
-	});
-});
+// 	signup.addEventListener('reset', ({ target }) => {
+// 		target.hidePopover();
+// 	});
+// });
 
 // customElements.whenDefined('scroll-snap').then(async ScollSnap => {
 // 	const scrollSnap = new ScollSnap();
@@ -190,7 +213,8 @@ await customElements.whenDefined('event-signup').then(() => {
 // 	document.querySelector('.btn.prev').addEventListener('click', scrollSnap.prev.bind(scrollSnap), { passive: true });
 // 	document.getElementById('main').prepend(scrollSnap);
 // });
-
+console.log(document.getElementById('camera'));
+document.getElementById('camera').addEventListener('aftercapture', console.log);
 document.getElementById('camera').addEventListener('aftercapture', ({ blob }) => {
 	document.getElementById('camera-roll')
 		.addImage(blob)
