@@ -6,6 +6,8 @@ import { createImage, createElement } from '@shgysk8zer0/kazoo/elements.js';
 import { getJSON } from '@shgysk8zer0/kazoo/http.js';
 import { saveBlob } from '@shgysk8zer0/kazoo/filesystem.js';
 
+const COMMANDS = new Map();
+
 export class CanvasCaptureEvent extends Event {
 	/** @private {CanvasRenderingContext2D} */
 	#ctx;
@@ -48,10 +50,10 @@ export class CanvasCaptureEvent extends Event {
 
 export class HTMLPhotoBoothElement extends HTMLElement {
 	/** @private {ShadowRoot} */
-	#shadow;
+	#shadow = this.attachShadow({ mode: 'open' });
 
 	/** @private {ElementInternals} */
-	#internals;
+	#internals = this.attachInternals();
 
 	/** @private {HTMLSlotElement} */
 	#overlaySlot;
@@ -109,9 +111,80 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 	constructor() {
 		super();
-		this.#shadow = this.attachShadow({ mode: 'open' });
-		this.#internals = this.attachInternals();
 		this.#internals.states.add('--inactive');
+
+		if (globalThis[Symbol.for('polyfill-command')] instanceof Function) {
+			globalThis[Symbol.for('polyfill-command')](this.#shadow);
+		}
+
+		this.addEventListener('command', async event => {
+			switch (event.command) {
+				case '--start':
+					this.start({ fullscreen: true });
+					break;
+
+				case '--stop':
+					if (this.#shadow.getElementById('opts').open) {
+						this.closeSettings();
+					} else {
+						this.stop();
+					}
+					break;
+
+				case '--fullscreen':
+					if (this.hasAttribute('popover')) {
+						this.showPopover();
+					} else {
+						this.requestFullscreen();
+					}
+					break;
+
+				case '--exit-fullscreen':
+					if (this.isSameNode(this.ownerDocument.fullscreenElement)) {
+						this.ownerDocument.exitFullscreen();
+					} else if (this.hasAttribute('popover')) {
+						this.hidePopover();
+					}
+					break;
+
+				case '--capture':
+					this.closeSettings();
+					await this.#waitForDelay();
+
+					if (this.dispatchEvent(new CanvasCaptureEvent('beforecapture', this.#ctx))) {
+						this.#snapShutter();
+
+						if (this.saveOnCapture) {
+							const blob = await this.saveAs(`capture-${new Date().toISOString()}${this.ext}`, { type: 'blob' });
+							this.dispatchEvent(new CanvasCaptureEvent('aftercapture', this.#ctx, blob));
+						} else {
+							const blob = await this.toBlob();
+							this.dispatchEvent(new CanvasCaptureEvent('aftercapture', this.#ctx, blob));
+						}
+					}
+
+					break;
+
+				case '--share':
+					this.closeSettings();
+					await this.#waitForDelay();
+
+					if (this.dispatchEvent(new CanvasCaptureEvent('beforecapture',  this.#ctx))) {
+						this.#snapShutter();
+						await this.share();
+						this.dispatchEvent(new CanvasCaptureEvent('aftercapture', this.#ctx));
+					}
+					break;
+
+				default:
+					if (COMMANDS.has(event.command)) {
+						const callback = COMMANDS.get(event.command);
+						callback.call(this, event);
+					} else {
+						console.log(`Unhandled command: "${event.command}".`);
+					}
+			}
+		});
 	}
 
 	connectedCallback() {
@@ -123,6 +196,8 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 
 		this.#shadow.adoptedStyleSheets = [styles];
 		this.#shadow.replaceChildren(template.cloneNode(true));
+
+		this.#shadow.querySelectorAll('button[command]').forEach(btn => btn.commandForElement = this);
 
 		this.#shadow.querySelector('form').addEventListener('submit', event => {
 			event.preventDefault();
@@ -155,43 +230,6 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 			}
 		});
 
-		this.#shadow.getElementById('capture').addEventListener('click', async () => {
-			this.closeSettings();
-			await this.#waitForDelay();
-
-			if (this.dispatchEvent(new CanvasCaptureEvent('beforecapture', this.#ctx))) {
-				this.#snapShutter();
-
-				if (this.saveOnCapture) {
-					const blob = await this.saveAs(`capture-${new Date().toISOString()}${this.ext}`, { type: 'blob' });
-					this.dispatchEvent(new CanvasCaptureEvent('aftercapture', this.#ctx, blob));
-				} else {
-					const blob = await this.toBlob();
-					this.dispatchEvent(new CanvasCaptureEvent('aftercapture', this.#ctx, blob));
-				}
-
-			}
-		}, { signal, passive });
-
-		this.#shadow.getElementById('start').addEventListener('click', () => this.start({ fullscreen: true }), { signal, passive });
-
-		this.#shadow.getElementById('stop').addEventListener('click', () => {
-			if (this.#shadow.getElementById('opts').open) {
-				this.closeSettings();
-			} else {
-				this.stop();
-			}
-		}, { signal, passive });
-
-		this.#shadow.getElementById('fullscreen').addEventListener('click', () => {
-			if (this.hasAttribute('popover')) {
-				this.showPopover();
-			} else {
-				this.requestFullscreen();
-
-			}
-		}, { signal, passive });
-
 		const toggleFullscreen = ({ type, newState } = {}) => {
 			switch (type) {
 				case 'beforetoggle':
@@ -222,16 +260,7 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		};
 
 		this.ownerDocument.addEventListener('fullscreenchange', toggleFullscreen, { signal, passive });
-
 		this.addEventListener('beforetoggle', toggleFullscreen, { signal, passive });
-
-		this.#shadow.getElementById('exit-fullscreen').addEventListener('click', () => {
-			if (this.isSameNode(this.ownerDocument.fullscreenElement)) {
-				this.ownerDocument.exitFullscreen();
-			} else if (this.hasAttribute('popover')) {
-				this.hidePopover();
-			}
-		}, { signal, passive });
 
 		this.#mediaQuery.addEventListener('change', () => {
 			if (this.active) {
@@ -242,17 +271,6 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		this.#shadow.getElementById('fullscreen').disabled = false;
 
 		if (navigator.share instanceof Function) {
-			this.#shadow.getElementById('share').addEventListener('click', async () => {
-				this.closeSettings();
-				await this.#waitForDelay();
-
-				if (this.dispatchEvent(new CanvasCaptureEvent('beforecapture',  this.#ctx))) {
-					this.#snapShutter();
-					await this.share();
-					this.dispatchEvent(new CanvasCaptureEvent('aftercapture', this.#ctx));
-				}
-			}, { signal, passive });
-
 			this.#shadow.getElementById('share').disabled = false;
 		} else {
 			this.#shadow.getElementById('share').disabled = true;
@@ -1323,6 +1341,18 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		return HTMLPhotoBoothElement.HD;
 	}
 
+	static registerCommand(command, callback) {
+		if (typeof command !== 'string' || ! command.startsWith('--')) {
+			throw new TypeError('Registered commands must be strings prefixed with "--".');
+		} else if (typeof callback !== 'function') {
+			throw new TypeError('Callback for registered commands must be functions.');
+		} else if (COMMANDS.has(command)) {
+			throw new Error(`"${command}" is already a registered command.`);
+		} else {
+			COMMANDS.set(command, callback);
+		}
+	}
+
 	static create({
 		overlays = [],
 		images = [],
@@ -1569,42 +1599,42 @@ const template = html`
 		</slot>
 	</div>
 	<div part="controls overlay" class="panel overlay absolute bottom full-width">
-		<button type="button" id="start" class="btn when-inactive" data-action="start" title="Open Camera"  aria-label="Open Camera">
+		<button type="button" id="start" class="btn when-inactive" data-action="start" command="--start" title="Open Camera"  aria-label="Open Camera">
 			<slot name="start-icon">
 				<svg width="96" height="96" viewBox="0 0 16 16" fill="currentColor">
 					<path fill-rule="evenodd" d="M15.2 2.09L10 5.72V3c0-.55-.45-1-1-1H1c-.55 0-1 .45-1 1v9c0 .55.45 1 1 1h8c.55 0 1-.45 1-1V9.28l5.2 3.63c.33.23.8 0 .8-.41v-10c0-.41-.47-.64-.8-.41z"/>
 				</svg>
 			</slot>
 		</button>
-		<button type="button" id="fullscreen" class="btn when-active" part="btn fullscreen-btn" data-action="fullscreen" title="Enter Fullscreen" aria-label="Enter Fullscreen" disabled="">
+		<button type="button" id="fullscreen" class="btn when-active" part="btn fullscreen-btn" command="--fullscreen" data-action="fullscreen" title="Enter Fullscreen" aria-label="Enter Fullscreen" disabled="">
 			<slot name="fullscreen-icon">
 				<svg width="84" height="96" viewBox="0 0 14 16" fill="currentColor">
 					<path fill-rule="evenodd" d="M13 10h1v3c0 .547-.453 1-1 1h-3v-1h3v-3zM1 10H0v3c0 .547.453 1 1 1h3v-1H1v-3zm0-7h3V2H1c-.547 0-1 .453-1 1v3h1V3zm1 1h10v8H2V4zm2 6h6V6H4v4zm6-8v1h3v3h1V3c0-.547-.453-1-1-1h-3z"/>
 				</svg>
 			</slot>
 		</button>
-		<button type="button" id="exit-fullscreen" class="btn when-active" part="btn exit-fullscreen-btn" data-action="exit-fullscreen" title="Leave Fullscreen" aria-label="Exit Fullscreen" disabled="">
+		<button type="button" id="exit-fullscreen" class="btn when-active" part="btn exit-fullscreen-btn" command="--exit-fullscreen" data-action="exit-fullscreen" title="Leave Fullscreen" aria-label="Exit Fullscreen" disabled="">
 			<slot name="exit-fullscreen-icon">
 				<svg width="84" height="96" viewBox="0 0 14 16" fill="currentColor">
 					<path fill-rule="evenodd" d="M2 4H0V3h2V1h1v2c0 .547-.453 1-1 1zm0 8H0v1h2v2h1v-2c0-.547-.453-1-1-1zm9-2c0 .547-.453 1-1 1H4c-.547 0-1-.453-1-1V6c0-.547.453-1 1-1h6c.547 0 1 .453 1 1v4zM9 7H5v2h4V7zm2 6v2h1v-2h2v-1h-2c-.547 0-1 .453-1 1zm1-10V1h-1v2c0 .547.453 1 1 1h2V3h-2z"/>
 				</svg>
 			</slot>
 		</button>
-		<button type="button" id="toggle-settings" class="btn" part="btn settings-btn" data-action="toggle-settings" title="Toggle Settings Menu" aria-label="Toggle Settings">
+		<button type="button" id="toggle-settings" class="btn" part="btn settings-btn" command="--toggle-settings" data-action="toggle-settings" title="Toggle Settings Menu" aria-label="Toggle Settings">
 			<slot name="settings-icon">
 				<svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor" role="presentation">
 					<path fill-rule="evenodd" d="M4 7H3V2h1v5zm-1 7h1v-3H3v3zm5 0h1V8H8v6zm5 0h1v-2h-1v2zm1-12h-1v6h1V2zM9 2H8v2h1V2zM5 8H2c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1zm5-3H7c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1zm5 4h-3c-.55 0-1 .45-1 1s.45 1 1 1h3c.55 0 1-.45 1-1s-.45-1-1-1z"/>
 				</svg>
 			</slot>
 		</button>
-		<button type="button" id="capture" class="btn when-active" part="btn capture-btn" data-action="capture" title="Capture" aria-label="Capture" accesskey=" ">
+		<button type="button" id="capture" class="btn when-active" part="btn capture-btn" command="--capture" data-action="capture" title="Capture" aria-label="Capture" accesskey=" ">
 			<slot name="capture-icon">
 				<svg viewBox="0 0 2 2" fill="currentColor" height="96" width="96" fill="currentColor">
 					<circle cx="1" cy="1" r="1"></circle>
 				</svg>
 			</slot>
 		</button>
-		<button type="button" id="share" class="btn when-active" part="btn share-btn" data-action="share" title="Share" aria-label="Share" accesskey="s" disabled="">
+		<button type="button" id="share" class="btn when-active" part="btn share-btn" command="--share" data-action="share" title="Share" aria-label="Share" accesskey="s" disabled="">
 			<slot name="share-icon">
 				<svg width="96" height="96" viewBox="0 0 16 16" fill="currentColor">
 					<path d="M5.969 7.969a2.969 2.969 0 1 1-5.938 0 2.969 2.969 0 1 1 5.938 0zm9.968 5a2.969 2.969 0 1 1-5.937 0 2.969 2.969 0 1 1 5.937 0zm0-10a2.969 2.969 0 1 1-5.937 0 2.969 2.969 0 1 1 5.937 0z" overflow="visible"/>
@@ -1613,7 +1643,7 @@ const template = html`
 			</slot>
 		</button>
 		<slot name="controls" class="when-active"></slot>
-		<button type="button" id="stop" class="btn when-active" part="btn stop-btn" data-action="stop" title="Close Camera" aria-label="Close Camera" accesskey="x">
+		<button type="button" id="stop" class="btn when-active" part="btn stop-btn" command="--stop" data-action="stop" title="Close Camera" aria-label="Close Camera" accesskey="x">
 			<slot name="stop-icon">
 				<svg width="96" height="96" viewBox="0 0 12 16" fill="currentColor">
 					<path fill-rule="evenodd" d="M7.48 8l3.75 3.75-1.48 1.48L6 9.48l-3.75 3.75-1.48-1.48L4.52 8 .77 4.25l1.48-1.48L6 6.52l3.75-3.75 1.48 1.48L7.48 8z"/>
