@@ -2,6 +2,7 @@ import { createImage } from '@shgysk8zer0/kazoo/elements.js';
 import { css } from '@aegisjsproject/parsers/css.js';
 import { svg } from '@aegisjsproject/parsers/svg.js';
 import { getInt, setInt } from '@shgysk8zer0/kazoo/attrs.js';
+import { HTMLCommandTargetElement } from './command-target.js';
 
 const _between = (min, val, max) => ! (val > max || val < min);
 
@@ -135,8 +136,9 @@ const prevIcon = svg`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="
 	<path fill-rule="evenodd" d="M5.5 3L7 4.5 3.25 8 7 11.5 5.5 13l-5-5 5-5z"/>
 </svg>`;
 
-customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLElement {
-	#shadow;
+customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLCommandTargetElement {
+	#shadow = this.attachShadow({ mode: 'closed', delegatesFocus: true });
+	#internals = this.attachInternals();
 	#container;
 	#slot;
 	#current = null;
@@ -149,8 +151,16 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 
 	constructor() {
 		super();
+		this.registerCommand('--next', this.next);
+		this.registerCommand('--prev', this.prev);
+		this.registerCommand('--first', this.scrollToFirst);
+		this.registerCommand('--last', this.scrollToLast);
+		this.registerCommand('--pause', this.pause);
+		this.registerCommand('--play', this.play);
+		this.registerCommand('--toggle', ({ target }) => target.paused ? target.play() : target.pause());
+		this.closeCommandRegistry();
 
-		this.#shadow = this.attachShadow({ mode: 'closed', delegatesFocus: true });
+		// this.#shadow = this.attachShadow({ mode: 'closed', delegatesFocus: true });
 		this.#container = document.createElement('div');
 		this.#slot = document.createElement('slot');
 		this.#container.part.add('container');
@@ -163,8 +173,10 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 		this.#nextBtn.append(nextIcon.cloneNode(true));
 		this.#nextBtn.classList.add('btn', 'next-btn', 'fixed');
 		this.#nextBtn.part.add('btn', 'next-btn');
-		this.#nextBtn.addEventListener('click', this.next.bind(this), { passive: true });
-		this.#prevBtn.addEventListener('click', this.prev.bind(this), { passive: true });
+		this.#nextBtn.command = '--next';
+		this.#nextBtn.commandForElement = this;
+		this.#prevBtn.command = '--prev';
+		this.#prevBtn.commandForElement = this;
 		this.#prevBtn.type = 'button';
 		this.#prevBtn.title = 'Previous';
 		this.#prevBtn.ariaLabel = 'Previous';
@@ -252,17 +264,12 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 	async attributeChangedCallback(name, oldVal, newVal) {
 		switch(name) {
 			case 'delay':
-				if (typeof oldVal === 'string' && ! Number.isNaN(this.#interval)) {
-					clearInterval(this.#interval);
-					this.#interval = NaN;
+				if (typeof oldVal === 'string') {
+					this.pause();
 				}
 
 				if (typeof newVal === 'string') {
-					await this.whenConnected;
-					this.#interval = setInterval(this.next.bind(this), this.delay);
-					this.#signal.addEventListener('abort', () => {
-						clearInterval(this.#interval);
-					}, { once: true });
+					await this.play();
 				}
 		}
 	}
@@ -355,6 +362,10 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 		}
 	}
 
+	get paused() {
+		return ! this.#internals.states.has('--playing');
+	}
+
 	get prefersReducedMotion() {
 		return HTMLScrollSnapElement.#prefersReducedMotion.matches;
 	}
@@ -394,6 +405,10 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 	// get #aborted() {
 	// 	return this.#signal.aborted;
 	// }
+
+	get states() {
+		return this.#internals.states;
+	}
 
 	get #signal() {
 		if (this.#controller instanceof AbortController) {
@@ -445,6 +460,26 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLEle
 			this.append(img);
 			await img.decode();
 			return img;
+		}
+	}
+
+	pause() {
+		if (this.#internals.states.has('--playing')) {
+			clearInterval(this.#interval);
+			this.#interval = NaN;
+			this.#internals.states.delete('--playing');
+		}
+	}
+
+	async play() {
+		if (this.hasAttribute('delay') && ! this.#internals.states.has('--playing')) {
+			await this.whenConnected;
+			this.#interval = setInterval(this.next.bind(this), this.delay);
+			this.#internals.states.add('--playing');
+
+			this.#signal.addEventListener('abort', () => {
+				this.pause();
+			}, { once: true });
 		}
 	}
 

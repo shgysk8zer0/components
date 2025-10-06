@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.19] - 2025-10-06
+
+### Added
+- Add `HTMLCommandTargetElement` as base class based on Command Invoker API
+
+### Changed
+- Update `<scroll-snap>` to be based on `HTMLCommandTargetElement`
+
 ## [v0.3.18] - 2025-10-02
 
 ### Changed
