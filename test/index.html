@@ -172,9 +172,17 @@
 			<button type="button" class="btn btn-accept sign-in" disabled="">Sign-In</button>
 			<share-to-button target="twitter"></share-to-button>
 			<share-to-button target="linkedin"></share-to-button>
+			<button type="button" command="--next" commandfor="snap">Next</button>
+			<button type="button" command="--prev" commandfor="snap">Prev</button>
+			<button type="button" command="--first" commandfor="snap">First</button>
+			<button type="button" command="--last" commandfor="snap">Last</button>
+			<button type="button" command="--pause" commandfor="snap">Pause</button>
+			<button type="button" command="--play" commandfor="snap">Play</button>
+			<button type="button" command="--toggle" commandfor="snap">Toggle</button>
 		</nav>
 		<main id="main">
-			<scroll-snap type="inline" align="center" delay="5000" behavior="smooth">
+			<command-target id="command-target"></command-target>
+			<scroll-snap id="snap" type="inline" align="center" delay="5000" behavior="smooth">
 				<!-- <img src="/slides/bridge-to-hope-hd.png" height="1080" width="1920" alt="Bridge to Home" />
 				<img src="/slides/pantry.png" height="1080" width="1920" alt="Pantry" />
 				<img src="/slides/volunteers.png" height="1080" width="1920" alt="Volunteers" />
