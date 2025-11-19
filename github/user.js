@@ -39,7 +39,7 @@ registerCustomElement('github-user', class HTMLGitHubUserElement extends HTMLEle
 				new CSSStyleSheet().replace(styles),
 			]);
 
-			shadow.setHTML(template, sanitizer);
+			shadow.setHTML(template, { sanitizer });
 			this.dispatchEvent(new Event('ready'));
 
 		});

@@ -5,14 +5,17 @@ import { getJSON } from '@shgysk8zer0/kazoo/http.js';
 import { createXIcon } from '@shgysk8zer0/kazoo/icons.js';
 import { description as setDescription } from '@shgysk8zer0/kazoo/meta.js';
 import { properties } from '@aegisjsproject/styles/properties.js';
+import { sanitizer as defaultSanitizer } from '@aegisjsproject/sanitizer/config/base.js';
 import javascript from 'highlight.js/languages/javascript.min.js';
 import xml from 'highlight.js/languages/xml.min.js';
 import css from 'highlight.js/languages/css.min.js';
 
 trustedTypes.createPolicy('default', {
-	createHTML(input, policy) {
+	createHTML(input, sanitizer = defaultSanitizer) {
+		console.trace();
+		console.log({ input, sanitizer });
 		const el = document.createElement('div');
-		el.setHTML(input, policy);
+		el.setHTML(input, { sanitizer: typeof sanitizer === 'object' ? sanitizer : defaultSanitizer });
 		return el.innerHTML;
 	}
 });

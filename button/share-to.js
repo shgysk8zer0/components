@@ -160,7 +160,7 @@ registerCustomElement('share-to-button', class HTMLShareToButtonElement extends 
 				new CSSStyleSheet().replace(styles),
 			]);
 
-			shadow.setHTML(template, sanitizer);
+			shadow.setHTML(template, { sanitizer });
 			this.dispatchEvent(new Event('ready'));
 		});
 

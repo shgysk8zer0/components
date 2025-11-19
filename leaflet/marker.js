@@ -8,6 +8,7 @@ import { clamp } from '@shgysk8zer0/kazoo/math.js';
 import { getSchemaIcon } from './schema-icon.js';
 import { MARKER_TYPES } from './marker-types.js';
 import { getFloat, setFloat, getBool, setBool, getInt, setInt } from '@shgysk8zer0/kazoo/attrs.js';
+import { sanitizer } from '@aegisjsproject/sanitizer/config/base.js';
 
 const data = new WeakMap();
 const controllers = new WeakMap();
@@ -269,7 +270,7 @@ registerCustomElement('leaflet-marker', class HTMLLeafletMarkerElement extends H
 			this.popup = container;
 		} else if (HTMLElement.setHTML instanceof Function) {
 			const el = document.createElement('div');
-			el.setHTML(val, { sanitizer: new globalThis.Sanitizer() });
+			el.setHTML(val, { sanitizer });
 			el.slot = 'popup';
 			this.popup = el;
 		} else {

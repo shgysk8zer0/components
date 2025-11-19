@@ -35,7 +35,7 @@ HTMLCustomElement.register('weather-current', class HTMLWeatherForecastElement e
 			shadow.adoptedStyleSheets = await Promise.all([
 				new CSSStyleSheet().replace(styles),
 			]);
-			shadow.setHTML(template, sanitizer);
+			shadow.setHTML(template, { sanitizer });
 			shadows.set(this, shadow);
 			this.dispatchEvent(new Event('ready'));
 			internals.ariaBusy = 'false';
