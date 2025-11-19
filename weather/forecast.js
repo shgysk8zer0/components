@@ -31,7 +31,7 @@ HTMLCustomElement.register('weather-forecast', class HTMLWeatherForecastElement 
 			new CSSStyleSheet().replace(styles),
 		]);
 
-		shadow.setHTML(template, sanitizer);
+		shadow.setHTML(template, { sanitizer });
 
 		this.dispatchEvent(new Event('ready'));
 		this.update();

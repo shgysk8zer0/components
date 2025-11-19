@@ -63,7 +63,7 @@ registerCustomElement('spotify-player', class HTMLSpotifyPlayerElement extends H
 			}, { passive: true });
 		}
 
-		this.#shadow.setHTML(template, sanitizer);
+		this.#shadow.setHTML(template, { sanitizer });
 		this.#internals.states.delete('--loading');
 		this.#internals.states.add('--ready');
 		this.dispatchEvent(new Event('ready'));

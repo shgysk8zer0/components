@@ -118,7 +118,7 @@ registerCustomElement('install-prompt', class HTMLInstallPromptElement extends H
 			])
 		]).then(async ([manifest, sheets]) => {
 			shadow.adoptedStyleSheets = sheets;
-			shadow.setHTML(template, sanitizer);
+			shadow.setHTML(template, { sanitizer });
 			/**
 			 * @TODO: Handle `prefer_related_applications` somehow
 			 */

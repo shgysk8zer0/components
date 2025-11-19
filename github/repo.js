@@ -113,7 +113,7 @@ registerCustomElement('github-repo', class HTMLGitHubRepoElement extends HTMLEle
 		this[symbols.shadow].adoptedStyleSheets = await Promise.all([
 			new CSSStyleSheet().replace(styles),
 		]);
-		this[symbols.shadow].setHTML(template, sanitizer);
+		this[symbols.shadow].setHTML(template, { sanitizer });
 		this.dispatchEvent(new Event('ready'));
 	}
 
