@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.21] - 2026-01-21
+
+### Added
+- Add `--fullscreen` command to `<scroll-snap>`
+
+### Changed
+- Do not close command registry on `<scroll-snap>`
+
+### Fixed
+- Fixed warning in using a deprecated Trusted Type Policy
+
 ## [v0.3.20] - 2025-11-19
 
 ### Changed
