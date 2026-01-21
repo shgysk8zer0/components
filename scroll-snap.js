@@ -158,7 +158,13 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLCom
 		this.registerCommand('--pause', this.pause);
 		this.registerCommand('--play', this.play);
 		this.registerCommand('--toggle', ({ target }) => target.paused ? target.play() : target.pause());
-		this.closeCommandRegistry();
+		this.registerCommand('--fullscreen', ({ target }) => {
+			if (target.isSameNode(document.fullscreenElement)) {
+				document.exitFullscreen();
+			} else {
+				target.requestFullscreen();
+			}
+		});
 
 		// this.#shadow = this.attachShadow({ mode: 'closed', delegatesFocus: true });
 		this.#container = document.createElement('div');
