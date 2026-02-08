@@ -300,6 +300,16 @@ export class HTMLPhotoBoothElement extends HTMLElement {
 		}
 	}
 
+	[Symbol.dispose]() {
+		this.stop();
+		this.inert = true;
+
+		if (this.#blobImages.size !== 0) {
+			this.#blobImages.value().forEach(img => URL.revokeObjectURL(img.src));
+			this.#blobImages.clear();
+		}
+	}
+
 	get signal() {
 		if (this.#controller instanceof AbortController) {
 			return this.#controller.signal;

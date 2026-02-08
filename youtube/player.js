@@ -91,6 +91,10 @@ registerCustomElement('youtube-player', class HTMLYouTubePlayerElement extends H
 		}
 	}
 
+	[Symbol.dispose]() {
+		this.remove();
+	}
+
 	async render() {
 		const { credentialless, loading, height, width, video, controls, start } = this;
 		const { shadow } = protectedData.get(this);

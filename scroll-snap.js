@@ -3,6 +3,7 @@ import { css } from '@aegisjsproject/parsers/css.js';
 import { svg } from '@aegisjsproject/parsers/svg.js';
 import { getInt, setInt } from '@shgysk8zer0/kazoo/attrs.js';
 import { HTMLCommandTargetElement } from './command-target.js';
+// import styles from './scroll-snap.css' with { type: 'css' };
 
 const _between = (min, val, max) => ! (val > max || val < min);
 
@@ -85,6 +86,7 @@ const styles = css`
 		height: 100%;
 		width: 5em;
 		background-color: rgba(0, 0, 0, 0.7);
+		color: #fafafa;
 		backdrop-filter: blur(4px);
 		border: none;
 		padding: 20px;
@@ -128,11 +130,11 @@ const styles = css`
 	}
 `;
 
-const nextIcon = svg`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="32" viewBox="0 0 8 16" fill="currentColor" role="presentation" aria-hidden="true">
+const nextIcon = svg`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="32" part="icon next-icon" viewBox="0 0 8 16" fill="currentColor" role="presentation" aria-hidden="true">
 	<path fill-rule="evenodd" d="M7.5 8l-5 5L1 11.5 4.75 8 1 4.5 2.5 3l5 5z"/>
 </svg>`;
 
-const prevIcon = svg`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="32" viewBox="0 0 8 16" fill="currentColor" role="presentation" aria-hidden="true">
+const prevIcon = svg`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="32" part="icon prev-icon" viewBox="0 0 8 16" fill="currentColor" role="presentation" aria-hidden="true">
 	<path fill-rule="evenodd" d="M5.5 3L7 4.5 3.25 8 7 11.5 5.5 13l-5-5 5-5z"/>
 </svg>`;
 
@@ -166,7 +168,6 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLCom
 			}
 		});
 
-		// this.#shadow = this.attachShadow({ mode: 'closed', delegatesFocus: true });
 		this.#container = document.createElement('div');
 		this.#slot = document.createElement('slot');
 		this.#container.part.add('container');
@@ -189,6 +190,7 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLCom
 		this.#prevBtn.append(prevIcon.cloneNode(true));
 		this.#prevBtn.classList.add('btn', 'prev-btn', 'fixed');
 		this.#prevBtn.part.add('btn', 'prev-btn');
+
 		this.addEventListener('keydown', event => {
 			if ((event.metaKey && event.key !== 'Meta') || (event.ctrlKey && event.key !== 'Control')) {
 				switch(event.key) {
@@ -295,6 +297,11 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLCom
 			clearInterval(this.#interval);
 			this.#interval = NaN;
 		}
+	}
+
+	[Symbol.dispose]() {
+		this.pause();
+		this.inert = true;
 	}
 
 	#abort(reason) {
@@ -578,8 +585,8 @@ customElements.define('scroll-snap', class HTMLScrollSnapElement extends HTMLCom
 	}
 
 	async scrollBy({ top = 0, left = 0 }) {
-		const behavior = this.behavior;
 		await this.#connected.promise;
+		const behavior = this.behavior;
 		this.#container.scrollBy({ top, left, behavior });
 	}
 

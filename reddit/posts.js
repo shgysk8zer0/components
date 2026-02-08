@@ -49,6 +49,10 @@ registerCustomElement('reddit-posts', class HTMLRedditPostsElement extends HTMLE
 		await this.render();
 	}
 
+	[Symbol.dispose]() {
+		this.remove();
+	}
+
 	async render({ signal } = {}) {
 		const posts = await getPosts(this, { signal });
 		const nsfw = this.nsfw;
