@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.22] - 2026-02-07
+
+### Added
+- Add `[Symbol.dispose]` support for relevant components
+
 ## [v0.3.21] - 2026-01-21
 
 ### Added

@@ -249,6 +249,10 @@ registerCustomElement('install-prompt', class HTMLInstallPromptElement extends H
 		}
 	}
 
+	[Symbol.dispose]() {
+		this.close();
+	}
+
 	async show({ removeOnClose = true } = {}) {
 		if (! this.isConnected) {
 			document.body.append(this);

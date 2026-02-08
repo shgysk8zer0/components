@@ -69,6 +69,10 @@ registerCustomElement('spotify-player', class HTMLSpotifyPlayerElement extends H
 		this.dispatchEvent(new Event('ready'));
 	}
 
+	[Symbol.dispose]() {
+		this.remove();
+	}
+
 	get ready() {
 		const { resolve, promise } = Promise.withResolvers();
 		if (this.#shadow.childElementCount === 0) {

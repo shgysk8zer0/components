@@ -331,6 +331,10 @@ export class HTMLNotificationElement extends HTMLElement {
 		}
 	}
 
+	[Symbol.dispose]() {
+		this.remove();
+	}
+
 	get actions() {
 		return this.shadowRoot.querySelector('slot[name="actions"]').assignedElements()
 			.map(btn => {

@@ -17,6 +17,10 @@ class HTMLGoogleCalendarElement extends HTMLElement {
 		this.render();
 	}
 
+	[Symbol.dispose]() {
+		this.remove();
+	}
+
 	async render() {
 		const { width, height, calendarId, loading, mode, showTabs, showPrint, showCalendars, showTimezone } = this;
 		const { resolve, reject, promise } = Promise.withResolvers();
