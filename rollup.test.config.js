@@ -1,4 +1,3 @@
-/* eslint-env node */
 import { warningHandler as onwarn } from '@shgysk8zer0/js-utils/rollup';
 import { rollupImport } from '@shgysk8zer0/rollup-import/import';
 import terser from '@rollup/plugin-terser';
