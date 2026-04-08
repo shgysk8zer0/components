@@ -62,7 +62,7 @@
   },
   "homepage": "https://github.com/shgysk8zer0/components#readme",
   "devDependencies": {
-    "@shgysk8zer0/core-css": "^2.5.4",
+    "@shgysk8zer0/core-css": "^3.0.0",
     "@shgysk8zer0/css-utils": "^1.2.1",
     "@shgysk8zer0/eslint-config": "^1.0.7",
     "@shgysk8zer0/geoutils": "^1.0.6",
