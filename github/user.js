@@ -5,6 +5,9 @@ import { getString, setString, getBool, setBool } from '@shgysk8zer0/kazoo/attrs
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
 import { whenIntersecting } from '@shgysk8zer0/kazoo/intersect.js';
 import template from './user.html.js';
+import { reset } from '@aegisjsproject/styles/reset.js';
+import { layers } from '@aegisjsproject/styles/layers.js';
+import { componentBase, componentBorder } from '@aegisjsproject/styles/theme.js';
 import styles from './user.css.js';
 
 const ENDPOINT = 'https://api.github.com';
@@ -35,9 +38,8 @@ registerCustomElement('github-user', class HTMLGitHubUserElement extends HTMLEle
 		});
 
 		whenIntersecting(this).then(async () => {
-			shadow.adoptedStyleSheets = await Promise.all([
-				new CSSStyleSheet().replace(styles),
-			]);
+			new CSSStyleSheet().replace(styles)
+				.then(sheet => shadow.adoptedStyleSheets = [layers, reset, componentBase, componentBorder, sheet]);
 
 			shadow.setHTML(template, { sanitizer });
 			this.dispatchEvent(new Event('ready'));

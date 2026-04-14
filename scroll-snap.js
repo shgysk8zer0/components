@@ -11,7 +11,7 @@ const ALIGN = 'start';
 const TYPE = 'inline';
 const BEHAVIOR = 'smooth';
 
-const styles = css`
+const styles = css`@layer components.scroll-snap {
 	:host {
 		isolation: isolate;
 		contain: strict;
@@ -128,7 +128,7 @@ const styles = css`
 			opacity: 0;
 		}
 	}
-`;
+}`;
 
 const nextIcon = svg`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="32" part="icon next-icon" viewBox="0 0 8 16" fill="currentColor" role="presentation" aria-hidden="true">
 	<path fill-rule="evenodd" d="M7.5 8l-5 5L1 11.5 4.75 8 1 4.5 2.5 3l5 5z"/>

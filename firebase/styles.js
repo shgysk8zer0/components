@@ -1,6 +1,6 @@
 import { primary, light, dark, success, danger, blue, red, green, gray } from 'https://unpkg.com/@shgysk8zer0/jss@1.0.0/palette/bootstrap.js';
 
-export const hostStyles = new CSSStyleSheet().replace(`
+export const hostStyles = new CSSStyleSheet().replace(`@layer components {
 	:host {
 		background-color: ${light};
 		color: ${dark};
@@ -27,9 +27,9 @@ export const hostStyles = new CSSStyleSheet().replace(`
 			color: ${light};
 		}
 	}
-`);
+}`);
 
-export const commonStyles = new CSSStyleSheet().replace(`
+export const commonStyles = new CSSStyleSheet().replace(`@layer componnents {
 	.clearfix::after {
 		clear: both;
 		content: '';
@@ -71,9 +71,9 @@ export const commonStyles = new CSSStyleSheet().replace(`
 	.custom-element:not(:defined) .if-defined[slot], .custom-element.if-defined:not(:defined) {
 		display: none;
 	}
-`);
+}`);
 
-export const formStyles = new CSSStyleSheet().replace(`
+export const formStyles = new CSSStyleSheet().replace(`@layer components {
 	.form-group {
 		border: 1px solid transparent;
 		padding: var(--form-group-padding, 0.4em 0.8em);
@@ -142,9 +142,9 @@ export const formStyles = new CSSStyleSheet().replace(`
 	.form-group input[hidden]:checked + label[for].btn-toggle .when-unchecked {
 		display: none;
 	}
-`);
+}`);
 
-export const btnStyles = new  CSSStyleSheet().replace(`
+export const btnStyles = new  CSSStyleSheet().replace(`@layer components {
 	.btn:not([hidden]) {
 		appearance: button;
 		display: inline-block;
@@ -222,9 +222,9 @@ export const btnStyles = new  CSSStyleSheet().replace(`
 	.btn.btn-reject:active, .btn.btn-reject.active {
 		background-color:${red[6]};
 	}
-`);
+}`);
 
-export const fonts = new CSSStyleSheet().replace(`
+export const fonts = new CSSStyleSheet().replace(`@layer components {
 	.system-ui {
 		font-family: system-ui, sans-serif;
 	}
@@ -240,9 +240,9 @@ export const fonts = new CSSStyleSheet().replace(`
 	.ui-monospace {
 		font-family: ui-monospace, monospace;
 	}
-`);
+}`);
 
-export const floatStyles = new CSSStyleSheet().replace(`
+export const floatStyles = new CSSStyleSheet().replace(`@layer components {
 	.float-left {
 		float: left;
 	}
@@ -266,9 +266,9 @@ export const floatStyles = new CSSStyleSheet().replace(`
 	.clear-both {
 		clear: both;
 	}
-`);
+}`);
 
-export const positionStyles = new CSSStyleSheet().replace(`
+export const positionStyles = new CSSStyleSheet().replace(`@layer components {
 	.fixed {
 		position: fixed;
 	}
@@ -352,9 +352,9 @@ export const positionStyles = new CSSStyleSheet().replace(`
 	.right {
 		right: 0;
 	}
-`);
+}`);
 
-export const displayRules =  new CSSStyleSheet().replace(`
+export const displayRules =  new CSSStyleSheet().replace(`@layer components {
 	.block:not([hidden]) {
 		display: block;
 	}
@@ -382,9 +382,9 @@ export const displayRules =  new CSSStyleSheet().replace(`
 	.inline-grid:not([hidden]) {
 		display: inline-grid;
 	}
-`);
+}`);
 
-export const flexStyles = new CSSStyleSheet().replace(`
+export const flexStyles = new CSSStyleSheet().replace(`@layer components {
 	.flex.row, .inline-flex.row {
 		flex-direction: row;
 	}
@@ -500,9 +500,9 @@ export const flexStyles = new CSSStyleSheet().replace(`
 	.order-6 {
 		order: 6;
 	}
-`);
+}`);
 
-export const gridStyles = new CSSStyleSheet().replace(`
+export const gridStyles = new CSSStyleSheet().replace(`@layer components {
 	.grid-span-rows-2 {
 		grid-row: span 2;
 	}
@@ -602,9 +602,9 @@ export const gridStyles = new CSSStyleSheet().replace(`
 	.grid-flow-col-dense {
 		grid-auto-flow: column dense;
 	}
-`);
+}`);
 
-export const multiColumnStyles = new CSSStyleSheet().replace(`
+export const multiColumnStyles = new CSSStyleSheet().replace(`@layer components {
 	.cols-auto {
 		column-count: auto;
 	}
@@ -632,9 +632,9 @@ export const multiColumnStyles = new CSSStyleSheet().replace(`
 	.cols-6 {
 		column-count: 6;
 	}
-`);
+}`);
 
-export const cursorStyles = new CSSStyleSheet().replace(`
+export const cursorStyles = new CSSStyleSheet().replace(`@layer components {
 	.no-pointer-events {
 		pointer-events: none;
 	}
@@ -766,9 +766,9 @@ export const cursorStyles = new CSSStyleSheet().replace(`
 	.cursor-grabbing {
 		cursor: grabbing;
 	}
-`);
+}`);
 
-export const containmentStyles = new CSSStyleSheet().replace(`
+export const containmentStyles = new CSSStyleSheet().replace(`@layer components {
 	.contain-none {
 		contain: none;
 	}
@@ -796,9 +796,9 @@ export const containmentStyles = new CSSStyleSheet().replace(`
 	.contain-paint {
 		contain: paint;
 	}
-`);
+}`);
 
-export const colorStyles = new CSSStyleSheet().replace(`
+export const colorStyles = new CSSStyleSheet().replace(`@layer components {
 	.current-color {
 		fill: currentColor;
 	}
@@ -834,9 +834,9 @@ export const colorStyles = new CSSStyleSheet().replace(`
 	.color-inherit {
 		color: inherit;
 	}
-`);
+}`);
 
-export const backgroundStyles = new CSSStyleSheet().replace(`
+export const backgroundStyles = new CSSStyleSheet().replace(`@layer components {
 	.background-scroll {
 		background-attachment: scroll;
 	}
@@ -940,4 +940,4 @@ export const backgroundStyles = new CSSStyleSheet().replace(`
 	.background-compliment {
 		background-color: var(--compliment-color);
 	}
-`);
+}`);

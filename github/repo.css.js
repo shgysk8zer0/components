@@ -1,63 +1,52 @@
-export default `:host {
-	display: inline-block;
-	font-family: 'Roboto', sans-serif;
-	text-align: left;
-	padding: 0.7em 0.8em;
-	margin: 0.5em;
-	border: 1px solid #cecece;
-	border-radius: 8px;
-	overflow: auto;
-	line-height: 1.4;
-	box-sizing: border-box;
-	color-scheme: light dark;
-}
+export default `@layer components {
+	:host {
+		display: inline-block;
+		text-align: left;
+		padding: 0.7em 0.8em;
+		margin: 0.5em;
+		overflow: auto;
+		line-height: 1.4;
+	}
 
-:host([theme="light"]) {
-	color-scheme: light;
-}
+	[part~="link"] {
+		text-decoration: underline;
+		color: inherit;
+	}
 
-:host([theme="dark"]) {
-	color-scheme: dark;
-}
+	svg {
+		color: inherit;
+		fill: currentColor;
+		vertical-align: middle;
+		width: 1em;
+		height: 1em;
+	}
 
-[part~="link"] {
-	text-decoration: underline;
-	color: inherit;
-}
+	[part~="profile-link"] {
+		gap: 0.7em;
+	}
 
-svg {
-	color: inherit;
-	fill: currentColor;
-	vertical-align: middle;
-	width: 1em;
-	height: 1em;
-}
+	[part~="avatar"] > img {
+		vertical-align: middle;
+		border-radius: 50%;
+	}
 
-[part~="profile-link"] {
-	gap: 0.7em;
-}
+	.underline {
+		text-decoration: underline;
+	}
 
-[part~="avatar"] > img {
-	vertical-align: middle;
-	border-radius: 50%;
-}
+	.color-inherit {
+		color: inherit;
+	}
 
-.underline {
-	text-decoration: underline;
-}
+	.flex {
+		display: flex;
+	}
 
-.color-inherit {
-	color: inherit;
-}
+	.flex.row {
+		flex-direction: row;
+	}
 
-.flex {
-	display: flex;
-}
-
-.flex.row {
-	flex-direction: row;
-}
-
-.flex.wrap {
-	flex-wrap: wrap;
+	.flex.wrap {
+		flex-wrap: wrap;
+	}
 }`;
