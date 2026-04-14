@@ -6,6 +6,9 @@ import { getDeferred } from '@shgysk8zer0/kazoo/promises.js';
 import { registerCustomElement } from '@shgysk8zer0/kazoo/custom-elements.js';
 import { getString, setString } from '@shgysk8zer0/kazoo/attrs.js';
 import template from './repo.html.js';
+import { reset } from '@aegisjsproject/styles/reset.js';
+import { layers } from '@aegisjsproject/styles/layers.js';
+import { componentBase, componentBorder } from '@aegisjsproject/styles/theme.js';
 import styles from './repo.css.js';
 
 const symbols = {
@@ -110,9 +113,8 @@ registerCustomElement('github-repo', class HTMLGitHubRepoElement extends HTMLEle
 			await whenIntersecting(this);
 		}
 
-		this[symbols.shadow].adoptedStyleSheets = await Promise.all([
-			new CSSStyleSheet().replace(styles),
-		]);
+		new CSSStyleSheet().replace(styles)
+			.then(sheet => this[symbols.shadow].adoptedStyleSheets = [layers, reset, componentBase, componentBorder, sheet]);
 		this[symbols.shadow].setHTML(template, { sanitizer });
 		this.dispatchEvent(new Event('ready'));
 	}

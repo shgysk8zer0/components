@@ -27,13 +27,13 @@ function ready() {
 	return promise;
 }
 
-const selfStyles = new CSSStyleSheet().replace(`
+const selfStyles = new CSSStyleSheet().replace(`@layer components {
 	:host {display: block; font-family: system-ui;}
 	pre, table, thead, tbody, tr {max-width: 100%; overflow: auto;}
 	img {max-width: 100%;}
 	#body {padding: 0.7rem;}
 	::slotted([slot="body"]) {display: none;}
-`);
+}`);
 
 export class HTMLMarkDownElement extends HTMLElement {
 	#shadow;

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.23] - 2026-04-14
+
+### Added
+- Add `@layer` to most styles
+
+### Changed
+- Begin implementing styles from `@aegisjsproject/styles`
+
 ## [v0.3.22] - 2026-02-07
 
 ### Added

@@ -2,7 +2,9 @@ import {
 	shadows, clearSlot, getWeatherByPostalCode, createIcon, getIcon, getSprite
 } from './helper.js';
 import { sanitizer } from '@aegisjsproject/sanitizer/config/base.js';
-
+import { reset } from '@aegisjsproject/styles/reset.js';
+import { layers } from '@aegisjsproject/styles/layers.js';
+import { componentBase, componentBorder } from '@aegisjsproject/styles/theme.js';
 import HTMLCustomElement from '../custom-element.js';
 import template from './current.html.js';
 import styles from './current.css.js';
@@ -32,9 +34,9 @@ HTMLCustomElement.register('weather-current', class HTMLWeatherForecastElement e
 
 			await Promise.all([this.whenConnected, this.whenLoad]);
 
-			shadow.adoptedStyleSheets = await Promise.all([
-				new CSSStyleSheet().replace(styles),
-			]);
+			new CSSStyleSheet().replace(styles)
+				.then(sheet => shadow.adoptedStyleSheets = [layers, reset, componentBase, componentBorder, sheet]);
+
 			shadow.setHTML(template, { sanitizer });
 			shadows.set(this, shadow);
 			this.dispatchEvent(new Event('ready'));

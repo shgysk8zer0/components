@@ -1,66 +1,56 @@
-export default `:host {
-	display: inline-block;
-	font-family: 'Roboto', sans-serif;
-	text-align: left;
-	padding: 0.7em 0.8em;
-	margin: 0.5em;
-	border: 1px solid #cecece;
-	border-radius: 8px;
-	overflow: auto;
-	line-height: 1.4;
-	color-scheme: light dark;
-}
+export default `@layer components {
+	:host {
+		display: inline-block;
+		text-align: left;
+		padding: 0.7em 0.8em;
+		margin: 0.5em;
+		overflow: auto;
+		line-height: 1.4;
+	}
 
-:host([theme="light"]) {
-	color-scheme: light;
-}
+	:host(:not([bio])) [part~="bio"] {
+		display: none;
+	}
 
-:host([theme="dark"]) {
-	color-scheme: dark;
-}
+	[part~="avatar"] {
+		border-radius: 6px;
+		vertical-align: top;
+		margin: 0.6em;
+	}
 
-:host(:not([bio])) [part~="bio"] {
-	display: none;
-}
+	[part~="icon"] {
+		fill: currentColor;
+		height: 1em;
+		width: 1em;
+		vertical-align: middle;
+	}
 
-[part~="avatar"] {
-	border-radius: 6px;
-	vertical-align: top;
-	margin: 0.6em;
-}
+	[part~="name"] {
+		font-size: 1.6em;
+	}
 
-[part~="icon"] {
-	fill: currentColor;
-	height: 1em;
-	width: 1em;
-	vertical-align: middle;
-}
+	[part~="bio"] {
+		overflow: auto;
+		padding-left: 1.4em;
+		margin: 0.4em;
+		border-left: 7px solid currentColor;
+	}
 
-[part~="name"] {
-	font-size: 1.6em;
-}
+	.clearfix::after {
+		display: block;
+		content: '';
+		clear: both;
+	}
 
-[part~="bio"] {
-	overflow: auto;
-	padding-left: 1.4em;
-	margin: 0.4em;
-	border-left: 7px solid currentColor;
-}
+	.float-left {
+		float: left;
+	}
 
-.clearfix::after {
-	display: block;
-	content: '';
-	clear: both;
-}
+	.inline-block {
+		display: inline-block;
+	}
 
-.float-left {
-	float: left;
-}
-
-.inline-block {
-	display: inline-block;
-}
-
-.color-inherit {
-	color: inherit;
+	.color-inherit {
+		color: inherit;
+	}
 }`;

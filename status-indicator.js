@@ -34,29 +34,31 @@ const template = html`<div part="container" id="container" aria-hidden="true">
 	</div>
 </div>`;
 
-const style = css`:host {
-	display: inline-block;
-}
+const style = css`@layer components {
+	:host {
+		display: inline-block;
+	}
 
-:host(:not(:state(${STATES.pending}))) #pending {
-	display: none;
-}
+	:host(:not(:state(${STATES.pending}))) #pending {
+		display: none;
+	}
 
-:host(:not(:state(${STATES.success}))) #success {
-	display: none;
-}
+	:host(:not(:state(${STATES.success}))) #success {
+		display: none;
+	}
 
-:host(:not(:state(${STATES.failed}))) #failed {
-	display: none;
-}
+	:host(:not(:state(${STATES.failed}))) #failed {
+		display: none;
+	}
 
-:host(:state(${STATES.idle})) #container {
-	visibility: hidden;
-}
+	:host(:state(${STATES.idle})) #container {
+		visibility: hidden;
+	}
 
-[part="status-icon"] {
-	height: 1em;
-	width: auto;
+	[part="status-icon"] {
+		height: 1em;
+		width: auto;
+	}
 }`;
 
 export class HTMLStatusIndicatorElement extends HTMLElement {

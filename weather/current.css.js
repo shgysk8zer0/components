@@ -1,146 +1,125 @@
-export default  `:host {
-	display: inline-block;
-	padding: 18px;
-	font-size: 16px;
-	overflow: hidden;
-	max-width: 380px;
-	--background: #fafafa;
-	--color: #343434;
-	background-color: var(--background);
-	color: var(--color);
-	border: 1px solid #dadada;
-	border-radius: 6px;
-	color-scheme: light dark;
-}
-
-:host([theme="light"]) {
-	color-scheme: light;
-}
-
-:host([theme="dark"]) {
-	--background: #212121;
-	--color: #fefefe;
-	color-scheme: dark;
-}
-
-@media (prefers-color-scheme: dark) {
-	:host(:not([theme="light"])) {
-		--background: #212121;
-		--color: #fefefe;
+export default  `@layer components {
+	:host {
+		display: inline-block;
+		padding: 18px;
+		font-size: 16px;
+		overflow: hidden;
+		max-width: 380px;
+		border-radius: 6px;
 	}
-}
 
-#wrapper {
-	max-width: 380px;
-	grid-template-areas: "city city city"
-	"icon icon icon"
-	"conditions . ."
-	"temp . wind"
-	". . updated"
-	"credits credits credits";
-	grid-template-rows: auto;
-	grid-template-columns: 1fr 0 2fr;
-	grid-gap: 0 1em;
-	box-sizing: border-box;
-}
-
-@media (orientation: landscape) {
 	#wrapper {
+		max-width: 380px;
 		grid-template-areas: "city city city"
-		"icon conditions temp"
-		"icon wind wind"
-		"credits credits updated";
-		grid-template-rows: auto minmax(4em, 1fr) minmax(2em, 1fr) auto;
-		grid-template-columns: 96px auto auto;
+		"icon icon icon"
+		"conditions . ."
+		"temp . wind"
+		". . updated"
+		"credits credits credits";
+		grid-template-rows: auto;
+		grid-template-columns: 1fr 0 2fr;
+		grid-gap: 0 1em;
+		box-sizing: border-box;
 	}
-}
 
-::slotted(svg[slot="icon"]) {
-	width: 100%;
-	height: 100%;
-	object-fit: cover;
-}
+	@media (orientation: landscape) {
+		#wrapper {
+			grid-template-areas: "city city city"
+			"icon conditions temp"
+			"icon wind wind"
+			"credits credits updated";
+			grid-template-rows: auto minmax(4em, 1fr) minmax(2em, 1fr) auto;
+			grid-template-columns: 96px auto auto;
+		}
+	}
 
-#city {
-	margin: 0;
-	grid-area: city;
-}
+	::slotted(svg[slot="icon"]) {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
 
-#current {
-	grid-area: current;
-}
+	#city {
+		margin: 0;
+		grid-area: city;
+	}
 
-#icon {
-	grid-area: icon;
-	padding: 10px;
-}
+	#current {
+		grid-area: current;
+	}
 
-#temp {
-	grid-area: temp;
-}
+	#icon {
+		grid-area: icon;
+		padding: 10px;
+	}
 
-#wind {
-	grid-area: wind;
-}
+	#temp {
+		grid-area: temp;
+	}
 
-#conditions {
-	grid-area: conditions;
-}
+	#wind {
+		grid-area: wind;
+	}
 
-#updated {
-	grid-area: updated;
-}
+	#conditions {
+		grid-area: conditions;
+	}
 
-#credits {
-	grid-area: credits;
-}
+	#updated {
+		grid-area: updated;
+	}
 
-.grid {
-	display: grid;
-}
+	#credits {
+		grid-area: credits;
+	}
 
-.inline-grid {
-	display: inline-grid;
-}
+	.grid {
+		display: grid;
+	}
 
-.inline-block {
-	display: inline-block;
-}
+	.inline-grid {
+		display: inline-grid;
+	}
 
-.float-right {
-	float: right;
-}
+	.inline-block {
+		display: inline-block;
+	}
 
-.clearfix::after {
-	display: block;
-	content: '';
-	clear: both;
-}
+	.float-right {
+		float: right;
+	}
 
-.center {
-	text-align: center;
-}
+	.clearfix::after {
+		display: block;
+		content: '';
+		clear: both;
+	}
 
-.capitalize {
-	text-transform: capitalize;
-}
+	.center {
+		text-align: center;
+	}
 
-.color-inherit {
-	color: inherit;
-}
+	.capitalize {
+		text-transform: capitalize;
+	}
 
-.current-color {
-	fill: currentColor;
-}
+	.color-inherit {
+		color: inherit;
+	}
 
-.no-overflow {
-	overflow: hidden;
-}
+	.current-color {
+		fill: currentColor;
+	}
 
-.overflow-x-auto {
-	overflow-x: auto;
-}
+	.no-overflow {
+		overflow: hidden;
+	}
 
-svg[hidden] {
-	display: none;
+	.overflow-x-auto {
+		overflow-x: auto;
+	}
+
+	svg[hidden] {
+		display: none;
+	}
 }`;

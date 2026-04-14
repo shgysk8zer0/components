@@ -3,6 +3,9 @@ import { whenIntersecting } from '@shgysk8zer0/kazoo/intersect.js';
 import { sanitizer } from '@aegisjsproject/sanitizer/config/base.js';
 import template from './forecast.html.js';
 import styles from './forecast.css.js';
+import { reset } from '@aegisjsproject/styles/reset.js';
+import { layers } from '@aegisjsproject/styles/layers.js';
+import { componentBase, componentBorder } from '@aegisjsproject/styles/theme.js';
 import {
 	shadows, clearSlot, clearSlots, getForecastByPostalCode, createIcon, getSprite
 } from './helper.js';
@@ -27,9 +30,8 @@ HTMLCustomElement.register('weather-forecast', class HTMLWeatherForecastElement 
 		await whenIntersecting(this);
 		const shadow = shadows.get(this);
 
-		shadow.adoptedStyleSheets = await Promise.all([
-			new CSSStyleSheet().replace(styles),
-		]);
+		new CSSStyleSheet().replace(styles)
+			.then(sheet => shadow.adoptedStyleSheets = [layers, reset, componentBase, componentBorder, sheet]);
 
 		shadow.setHTML(template, { sanitizer });
 
